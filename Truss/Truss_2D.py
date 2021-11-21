@@ -1,6 +1,4 @@
 import pathlib
-
-
 import numpy as np
 
 
@@ -18,7 +16,8 @@ class Truss_2D:
             self.matrix_node_coords[node, 0] = float(x)
             self.matrix_node_coords[node, 1] = float(y)
         # Exclui os dados já armazenados da lista
-        lines = list(filter(lambda line: lines.index(line) >= self.num_nodes, lines))
+        lines = list(filter(lambda line: lines.index(
+            line) >= self.num_nodes, lines))
         # Armazena a quantidade de apoios
         self.num_supports = int(lines.pop(0))
         self.matrix_supports = np.zeros([self.num_supports, 3])
@@ -29,7 +28,8 @@ class Truss_2D:
             self.matrix_supports[support, 1] = float(x_restrained)
             self.matrix_supports[support, 2] = float(y_restrained)
         # Exclui os dados já armazenados da lista
-        lines = list(filter(lambda line: lines.index(line) >= self.num_supports, lines))
+        lines = list(filter(lambda line: lines.index(
+            line) >= self.num_supports, lines))
         # Armazena a quantidade de módulos de elasticidade longitudinal
         self.num_E = int(lines.pop(0))
         self.matrix_E = np.zeros([self.num_E, 1])
@@ -37,7 +37,8 @@ class Truss_2D:
         for modulus in range(self.num_E):
             self.matrix_E[modulus, 0] = float(lines[modulus])
         # Exclui os dados já armazenados da lista
-        lines = list(filter(lambda line: lines.index(line) >= self.num_E, lines))
+        lines = list(
+            filter(lambda line: lines.index(line) >= self.num_E, lines))
         # Armazena a quantidade de áreas de seção transversal
         self.num_areas = int(lines.pop(0))
         self.matrix_areas = np.zeros([self.num_areas, 1])
@@ -45,19 +46,22 @@ class Truss_2D:
         for area in range(self.num_areas):
             self.matrix_areas[area, 0] = float(lines[area])
         # Exclui os dados já armazenados da lista
-        lines = list(filter(lambda line: lines.index(line) >= self.num_areas, lines))
+        lines = list(filter(lambda line: lines.index(
+            line) >= self.num_areas, lines))
         # Armazena o número de barras da treliça
         self.num_members = int(lines.pop(0))
         self.matrix_members = np.zeros([self.num_members, 4])
         # Armazena as informações das barras
         for member in range(self.num_members):
-            initial_node, final_node, e_type, area_type = lines[member].split(",")
+            initial_node, final_node, e_type, area_type = lines[member].split(
+                ",")
             self.matrix_members[member, 0] = float(initial_node)
             self.matrix_members[member, 1] = float(final_node)
             self.matrix_members[member, 2] = float(e_type)
             self.matrix_members[member, 3] = float(area_type)
         # Exclui os dados já armazenados da lista
-        lines = list(filter(lambda line: lines.index(line) >= self.num_members, lines))
+        lines = list(filter(lambda line: lines.index(
+            line) >= self.num_members, lines))
         # Armazena o número de forças aplicadas
         self.num_forces = int(lines.pop(0))
         self.matrix_forces_location = np.zeros([self.num_forces, 1])
@@ -83,10 +87,44 @@ class Truss_2D:
         num_dof = 2 * self.num_nodes - self.num_restrained_coord
         return num_dof
 
-
+    def get_structure_coord_numbers(self):
+        # Valores auxiliares
+        num_dof = self.calculate_num_dof()
+        matrix_supports = self.matrix_supports
+        # Montagem da matriz coluna dos números das coordenadas
+        structure_coord_numbers = np.zeros([2 * self.num_nodes, 1], dtype=int)
+        # Contadores auxiliares
+        count_dof = 0
+        count_restrained = num_dof
+        # Percorre os nós da estrutura
+        for node in range(self.num_nodes):
+            is_support = False
+            # Percorre a matriz dos apoios
+            for support_node in range(len(matrix_supports)):
+                # Verifica se o nó avaliado contém um apoio
+                if matrix_supports[support_node, 0] == node:
+                    is_support = True
+                    # Percorre as direções (x = 0, y = 1)
+                    for direction in range(2):
+                        coord_number = 2 * node + direction
+                        # Verifica se o apoio está na direção avaliada
+                        if matrix_supports[support_node, direction + 1] == 1:
+                            count_restrained += 1
+                            structure_coord_numbers[coord_number,
+                                                    0] = count_restrained - 1
+                        else:
+                            count_dof += 1
+                            structure_coord_numbers[coord_number,
+                                                    0] = count_dof - 1
+            if not is_support:
+                for direction in range(2):
+                    coord_number = 2 * node + direction
+                    count_dof += 1
+                    structure_coord_numbers[coord_number, 0] = count_dof - 1
+        return structure_coord_numbers
 
 
 if __name__ == "__main__":
     data_path = pathlib.Path(__file__).parent / "data/truss2d_input_file.txt"
     trelica = Truss_2D(data_path)
-    trelica.calculate_num_dof()
+    trelica.get_structure_coord_numbers()
