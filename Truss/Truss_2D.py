@@ -50,7 +50,7 @@ class Truss_2D:
             line) >= self.num_areas, lines))
         # Armazena o número de barras da treliça
         self.num_members = int(lines.pop(0))
-        self.matrix_members = np.zeros([self.num_members, 4])
+        self.matrix_members = np.zeros([self.num_members, 4], dtype=int)
         # Armazena as informações das barras
         for member in range(self.num_members):
             initial_node, final_node, e_type, area_type = lines[member].split(
@@ -123,8 +123,84 @@ class Truss_2D:
                     structure_coord_numbers[coord_number, 0] = count_dof - 1
         return structure_coord_numbers
 
+    def write_structure_stiffness_matrix(self):
+        # Valores auxiliares
+        num_dof = self.calculate_num_dof()
+        coord_numbers = self.get_structure_coord_numbers()
+        matrix_members = self.matrix_members
+        # Gerando as matrizes com zeros
+        K = np.zeros([4, 4])
+        S = np.zeros([num_dof, num_dof])
+        for member in matrix_members:
+            beg_node = member[0]
+            end_node = member[1]
+            material_type = member[2]
+            cross_section_type = member[3]
+            E = self.matrix_E[material_type, 0]
+            A = self.matrix_areas[cross_section_type, 0]
+            # print(f"E = {E}")
+            # print(f"A = {A}")
+            x_beg = self.matrix_node_coords[beg_node, 0]
+            y_beg = self.matrix_node_coords[beg_node, 1]
+            x_end = self.matrix_node_coords[end_node, 0]
+            y_end = self.matrix_node_coords[end_node, 1]
+            L = np.sqrt((x_end-x_beg)**2 + (y_end-y_beg)**2)
+            # print(f"L = {L}")
+            cs = (x_end-x_beg) / L
+            sn = (y_end-y_beg) / L
+            # print(f"cs = {cs}")
+            # print(f"sn = {sn}")
+            self.assembly_K(E, A, L, cs, sn, K)
+            # print(f"Member:\n{K}\n")
+            self.assembly_S(beg_node, end_node, K, S)
+            # print(f"Partial Structure Stiffness Matrix:\n{S}\n")
+        print(f"Structure Stiffness Matrix:\n{S}\n")
+
+    def assembly_K(self, E, A, L, cs, sn, K):
+        axial_stiffness = E * A / (12 * L)
+        z1 = axial_stiffness * cs ** 2
+        z2 = axial_stiffness * sn ** 2
+        z3 = axial_stiffness * cs * sn
+        K[0, 0] = z1
+        K[1, 0] = z3
+        K[2, 0] = -z1
+        K[3, 0] = -z3
+        K[0, 1] = z3
+        K[1, 1] = z2
+        K[2, 1] = -z3
+        K[3, 1] = -z2
+        K[0, 2] = -z1
+        K[1, 2] = -z3
+        K[2, 2] = z1
+        K[3, 2] = z3
+        K[0, 3] = -z3
+        K[1, 3] = -z2
+        K[2, 3] = z3
+        K[3, 3] = z2
+
+    def assembly_S(self, beg_node, end_node, K, S):
+        num_dof = self.calculate_num_dof()
+        coord_numbers = self.get_structure_coord_numbers()
+        for row_K in range(4):
+            if row_K < 2:
+                row_code_number_1 = 2 * beg_node + row_K
+            else:
+                row_code_number_1 = 2 * end_node + (row_K - 2)
+            row_S = coord_numbers[row_code_number_1, 0]
+            if row_S < num_dof:
+                for column_K in range(4):
+                    if column_K < 2:
+                        row_code_number_2 = 2 * beg_node + column_K
+                    else:
+                        row_code_number_2 = 2 * end_node + (column_K - 2)
+                    column_S = coord_numbers[row_code_number_2, 0]
+                    if column_S < num_dof:
+                        S[row_S, column_S] += K[row_K, column_K]
+
 
 if __name__ == "__main__":
-    data_path = pathlib.Path(__file__).parent / "data/truss2d_input_file.txt"
+    # data_path = pathlib.Path(__file__).parent / "data/truss2d_input_file.txt"
+    data_path = pathlib.Path(__file__).parent / "data/exemplo_livro.txt"
     trelica = Truss_2D(data_path)
-    trelica.get_structure_coord_numbers()
+    # trelica.get_structure_coord_numbers()
+    trelica.write_structure_stiffness_matrix()
