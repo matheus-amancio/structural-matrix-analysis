@@ -20,7 +20,7 @@ class Truss_2D:
             line) >= self.num_nodes, lines))
         # Armazena a quantidade de apoios
         self.num_supports = int(lines.pop(0))
-        self.matrix_supports = np.zeros([self.num_supports, 3])
+        self.matrix_supports = np.zeros([self.num_supports, 3], dtype=int)
         # Armazena os dados dos apoios (suportes)
         for support in range(self.num_supports):
             node, x_restrained, y_restrained = lines[support].split(",")
@@ -64,7 +64,7 @@ class Truss_2D:
             line) >= self.num_members, lines))
         # Armazena o número de forças aplicadas
         self.num_forces = int(lines.pop(0))
-        self.matrix_forces_location = np.zeros([self.num_forces, 1])
+        self.matrix_forces_location = np.zeros([self.num_forces, 1], dtype=int)
         self.matrix_forces_magnitude = np.zeros([self.num_forces, 2])
         # Armazena os nós em que as forças são aplicadas e as magnitudes das forças
         for force in range(self.num_forces):
@@ -157,7 +157,7 @@ class Truss_2D:
         print(f"Structure Stiffness Matrix:\n{S}\n")
 
     def assembly_K(self, E, A, L, cs, sn, K):
-        axial_stiffness = E * A / (12 * L)
+        axial_stiffness = E * A / L
         z1 = axial_stiffness * cs ** 2
         z2 = axial_stiffness * sn ** 2
         z3 = axial_stiffness * cs * sn
@@ -197,10 +197,28 @@ class Truss_2D:
                     if column_S < num_dof:
                         S[row_S, column_S] += K[row_K, column_K]
 
+    def write_node_load_vector(self):
+        num_dof = self.calculate_num_dof()
+        matrix_members = self.matrix_members
+        node_load_vector = np.zeros([num_dof, 1])
+        coord_numbers = self.get_structure_coord_numbers()
+        for row in range(len(self.matrix_forces_location)):
+            node = self.matrix_forces_location[row, 0]
+            row_coord_number = 2 * node
+            N1 = coord_numbers[row_coord_number]
+            N2 = coord_numbers[row_coord_number + 1]
+            if N1 < num_dof:
+                node_load_vector[N1, 0] += self.matrix_forces_magnitude[row, 0]
+            if N2 < num_dof:
+                node_load_vector[N2, 0] += self.matrix_forces_magnitude[row, 1]
+        print(node_load_vector)
+            
+
 
 if __name__ == "__main__":
-    # data_path = pathlib.Path(__file__).parent / "data/truss2d_input_file.txt"
-    data_path = pathlib.Path(__file__).parent / "data/exemplo_livro.txt"
+    data_path = pathlib.Path(__file__).parent / "data/truss2d_input_file.txt"
+    # data_path = pathlib.Path(__file__).parent / "data/exemplo_livro.txt"
     trelica = Truss_2D(data_path)
     # trelica.get_structure_coord_numbers()
-    trelica.write_structure_stiffness_matrix()
+    # trelica.write_structure_stiffness_matrix()
+    trelica.write_node_load_vector()
