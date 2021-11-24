@@ -4,6 +4,14 @@ import numpy as np
 
 class Truss_2D:
     def __init__(self, input_file):
+        """
+        Método construtor da classe. Lê o arquivo de entrada e monta/calcula as
+        matrizes necessárias para a análise.
+
+        Parâmetros
+
+            input_file: Caminho do arquivo com os dados de entrada.
+        """
         # Leitura do arquivo de entrada
         with open(input_file, "r", encoding="utf-8") as inp_file:
             lines = inp_file.read().split("\n")
@@ -80,12 +88,14 @@ class Truss_2D:
         # print(self.matrix_members)
         # print(self.matrix_forces_location)
         # print(self.matrix_forces_magnitude)
+        # Cálculo das matrizes necessárias para a análise
         self.calculate_num_dof()
         self.get_structure_coord_numbers()
         self.calculate_structure_stiffness_matrix()
-        self.calculate_node_load_vector()
+        self.assembly_node_load_vector()
 
     def calculate_num_dof(self):
+        """Calcula o número de graus de liberdade da estrutura."""
         # Número de coordenadas restringidas
         self.num_restrained_coord = 0
         # Percorre as linhas da matriz de suporte
@@ -99,6 +109,10 @@ class Truss_2D:
         self.num_dof = 2 * self.num_nodes - self.num_restrained_coord
 
     def get_structure_coord_numbers(self):
+        """
+        Monta a matriz com os números associados às coordenadas dos nós da
+        estrutura.
+        """
         # Valores auxiliares
         num_dof = self.num_dof
         matrix_supports = self.matrix_supports
@@ -133,6 +147,7 @@ class Truss_2D:
                     self.structure_coord_numbers[coord_number] = count_dof - 1
 
     def calculate_structure_stiffness_matrix(self):
+        """Calcula a matriz de rigidez da ESTRUTURA."""
         # Valores auxiliares
         num_dof = self.num_dof
         matrix_members = self.matrix_members
@@ -162,16 +177,19 @@ class Truss_2D:
         self.structure_stiffness_matrix = S
 
     def assembly_K(self, E, A, L, cs, sn, K):
-        """Preenche a matriz de rigidez do ELEMENTO (K) a partir dos parâmetros
-
-        :param E: Módulo de elasticidade longitudinal
-        :param A: Área da seção transversal da barra
-        :param L: Comprimento da barra
-        :param cs: Cosseno (matriz de rotação)
-        :param sn: Seno (matriz de rotação)
-        :param K: Matriz de rigidez do elemento a ser preenchida
         """
-        axial_stiffness = E * A / L
+        Preenche a matriz de rigidez do ELEMENTO (K) a partir dos parâmetros
+
+        Parâmetros:
+
+            E: Módulo de elasticidade longitudinal
+            A: Área da seção transversal da barra
+            L: Comprimento da barra
+            cs: Cosseno (matriz de rotação)
+            sn: Seno (matriz de rotação)
+            K: Matriz de rigidez do elemento a ser preenchida
+        """
+        axial_stiffness = E * A / (12*L)
         # z1, z2 e z3 representam os produtos entre a rigidez axial e os senos e cossenos
         z1 = axial_stiffness * cs ** 2
         z2 = axial_stiffness * sn ** 2
@@ -194,12 +212,15 @@ class Truss_2D:
         K[3, 3] = z2
 
     def assembly_S(self, beg_node, end_node, K, S):
-        """Preenche a matriz de rigidez da ESTRUTURA
+        """
+        Preenche a matriz de rigidez da ESTRUTURA
+        
+        Parâmetros:
 
-        :param beg_node: Nó inicial do elemento
-        :param end_node: Nó final do elemento
-        :param K: Matriz de rigidez do elemento no SCG
-        :param S: Matriz de rigidez da estrutura a ser preenchida
+            beg_node: Nó inicial do elemento
+            end_node: Nó final do elemento
+            K: Matriz de rigidez do elemento no SCG
+            S: Matriz de rigidez da estrutura a ser preenchida
         """
         num_dof = self.num_dof
         coord_numbers = self.structure_coord_numbers
@@ -219,7 +240,8 @@ class Truss_2D:
                     if column_S < num_dof:
                         S[row_S, column_S] += K[row_K, column_K]
 
-    def calculate_node_load_vector(self):
+    def assembly_node_load_vector(self):
+        """Monta o vetor de carregamentos nodais."""
         num_dof = self.num_dof
         self.node_load_vector = np.zeros([num_dof])
         coord_numbers = self.structure_coord_numbers
@@ -232,12 +254,20 @@ class Truss_2D:
                 self.node_load_vector[N1] += self.matrix_forces_magnitude[row, 0]
             if N2 < num_dof:
                 self.node_load_vector[N2] += self.matrix_forces_magnitude[row, 1]
+    
+    def solve_node_displacements(self):
+        """Calcula os deslocamentos nodais."""
+        self.node_displacements = np.linalg.solve(self.structure_stiffness_matrix, self.node_load_vector)
+        print(self.structure_stiffness_matrix)
+        print(self.node_load_vector)
+        print(self.node_displacements)
 
 
 if __name__ == "__main__":
-    data_path = pathlib.Path(__file__).parent / "data/truss2d_input_file.txt"
-    # data_path = pathlib.Path(__file__).parent / "data/exemplo_livro.txt"
+    # data_path = pathlib.Path(__file__).parent / "data/truss2d_input_file.txt"
+    data_path = pathlib.Path(__file__).parent / "data/exemplo_livro.txt"
     trelica = Truss_2D(data_path)
+    trelica.solve_node_displacements()
     # print(trelica.structure_coord_numbers)
     # print(trelica.structure_stiffness_matrix)
     # trelica.write_node_load_vector()
