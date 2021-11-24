@@ -32,19 +32,19 @@ class Truss_2D:
             line) >= self.num_supports, lines))
         # Armazena a quantidade de módulos de elasticidade longitudinal
         self.num_E = int(lines.pop(0))
-        self.matrix_E = np.zeros([self.num_E, 1])
+        self.matrix_E = np.zeros([self.num_E])
         # Armazena os valores dos módulos de elasticidade longitudinal
         for modulus in range(self.num_E):
-            self.matrix_E[modulus, 0] = float(lines[modulus])
+            self.matrix_E[modulus] = float(lines[modulus])
         # Exclui os dados já armazenados da lista
         lines = list(
             filter(lambda line: lines.index(line) >= self.num_E, lines))
         # Armazena a quantidade de áreas de seção transversal
         self.num_areas = int(lines.pop(0))
-        self.matrix_areas = np.zeros([self.num_areas, 1])
+        self.matrix_areas = np.zeros([self.num_areas])
         # Armazena os valores das áreas
         for area in range(self.num_areas):
-            self.matrix_areas[area, 0] = float(lines[area])
+            self.matrix_areas[area] = float(lines[area])
         # Exclui os dados já armazenados da lista
         lines = list(filter(lambda line: lines.index(
             line) >= self.num_areas, lines))
@@ -64,14 +64,22 @@ class Truss_2D:
             line) >= self.num_members, lines))
         # Armazena o número de forças aplicadas
         self.num_forces = int(lines.pop(0))
-        self.matrix_forces_location = np.zeros([self.num_forces, 1], dtype=int)
+        self.matrix_forces_location = np.zeros([self.num_forces], dtype=int)
         self.matrix_forces_magnitude = np.zeros([self.num_forces, 2])
         # Armazena os nós em que as forças são aplicadas e as magnitudes das forças
         for force in range(self.num_forces):
             node, force_x, force_y = lines[force].split(",")
-            self.matrix_forces_location[force, 0] = float(node)
+            self.matrix_forces_location[force] = float(node)
             self.matrix_forces_magnitude[force, 0] = float(force_x)
             self.matrix_forces_magnitude[force, 1] = float(force_y)
+        # PRINTS
+        # print(self.matrix_node_coords)
+        # print(self.matrix_supports)
+        # print(self.matrix_E)
+        # print(self.matrix_areas)
+        # print(self.matrix_members)
+        # print(self.matrix_forces_location)
+        # print(self.matrix_forces_magnitude)
 
     def calculate_num_dof(self):
         # Número de coordenadas restringidas
@@ -92,7 +100,7 @@ class Truss_2D:
         num_dof = self.calculate_num_dof()
         matrix_supports = self.matrix_supports
         # Montagem da matriz coluna dos números das coordenadas
-        structure_coord_numbers = np.zeros([2 * self.num_nodes, 1], dtype=int)
+        structure_coord_numbers = np.zeros([2 * self.num_nodes], dtype=int)
         # Contadores auxiliares
         count_dof = 0
         count_restrained = num_dof
@@ -110,23 +118,20 @@ class Truss_2D:
                         # Verifica se o apoio está na direção avaliada
                         if matrix_supports[support_node, direction + 1] == 1:
                             count_restrained += 1
-                            structure_coord_numbers[coord_number,
-                                                    0] = count_restrained - 1
+                            structure_coord_numbers[coord_number] = count_restrained - 1
                         else:
                             count_dof += 1
-                            structure_coord_numbers[coord_number,
-                                                    0] = count_dof - 1
+                            structure_coord_numbers[coord_number] = count_dof - 1
             if not is_support:
                 for direction in range(2):
                     coord_number = 2 * node + direction
                     count_dof += 1
-                    structure_coord_numbers[coord_number, 0] = count_dof - 1
+                    structure_coord_numbers[coord_number] = count_dof - 1
         return structure_coord_numbers
 
     def write_structure_stiffness_matrix(self):
         # Valores auxiliares
         num_dof = self.calculate_num_dof()
-        coord_numbers = self.get_structure_coord_numbers()
         matrix_members = self.matrix_members
         # Gerando as matrizes com zeros
         K = np.zeros([4, 4])
@@ -136,8 +141,8 @@ class Truss_2D:
             end_node = member[1]
             material_type = member[2]
             cross_section_type = member[3]
-            E = self.matrix_E[material_type, 0]
-            A = self.matrix_areas[cross_section_type, 0]
+            E = self.matrix_E[material_type]
+            A = self.matrix_areas[cross_section_type]
             # print(f"E = {E}")
             # print(f"A = {A}")
             x_beg = self.matrix_node_coords[beg_node, 0]
@@ -186,31 +191,30 @@ class Truss_2D:
                 row_code_number_1 = 2 * beg_node + row_K
             else:
                 row_code_number_1 = 2 * end_node + (row_K - 2)
-            row_S = coord_numbers[row_code_number_1, 0]
+            row_S = coord_numbers[row_code_number_1]
             if row_S < num_dof:
                 for column_K in range(4):
                     if column_K < 2:
                         row_code_number_2 = 2 * beg_node + column_K
                     else:
                         row_code_number_2 = 2 * end_node + (column_K - 2)
-                    column_S = coord_numbers[row_code_number_2, 0]
+                    column_S = coord_numbers[row_code_number_2]
                     if column_S < num_dof:
                         S[row_S, column_S] += K[row_K, column_K]
 
     def write_node_load_vector(self):
         num_dof = self.calculate_num_dof()
-        matrix_members = self.matrix_members
-        node_load_vector = np.zeros([num_dof, 1])
+        node_load_vector = np.zeros([num_dof])
         coord_numbers = self.get_structure_coord_numbers()
         for row in range(len(self.matrix_forces_location)):
-            node = self.matrix_forces_location[row, 0]
+            node = self.matrix_forces_location[row]
             row_coord_number = 2 * node
             N1 = coord_numbers[row_coord_number]
             N2 = coord_numbers[row_coord_number + 1]
             if N1 < num_dof:
-                node_load_vector[N1, 0] += self.matrix_forces_magnitude[row, 0]
+                node_load_vector[N1] += self.matrix_forces_magnitude[row, 0]
             if N2 < num_dof:
-                node_load_vector[N2, 0] += self.matrix_forces_magnitude[row, 1]
+                node_load_vector[N2] += self.matrix_forces_magnitude[row, 1]
         print(node_load_vector)
             
 
