@@ -258,9 +258,6 @@ class Truss_2D:
     def solve_node_displacements(self):
         """Calcula os deslocamentos nodais."""
         self.node_displacements = np.linalg.solve(self.structure_stiffness_matrix, self.node_load_vector)
-        print(self.structure_stiffness_matrix)
-        print(self.node_load_vector)
-        print(self.node_displacements)
 
 
 if __name__ == "__main__":
