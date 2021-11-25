@@ -87,16 +87,7 @@ class Truss_2D:
             self.matrix_forces_magnitude[force, 0] = float(force_x)
             self.matrix_forces_magnitude[force, 1] = float(force_y)
 
-        # PRINTS
-        # print(self.matrix_node_coords)
-        # print(self.matrix_supports)
-        # print(self.matrix_E)
-        # print(self.matrix_areas)
-        # print(self.matrix_members)
-        # print(self.matrix_forces_location)
-        # print(self.matrix_forces_magnitude)
-
-        # Cálculo das matrizes necessárias para a análise
+        # Determinação das matrizes necessárias para a análise
         self.calculate_num_dof()
         self.get_structure_coord_numbers()
         self.calculate_structure_stiffness_matrix()
@@ -104,89 +95,119 @@ class Truss_2D:
 
     def calculate_num_dof(self):
         """Calcula o número de graus de liberdade da estrutura."""
-        # Número de coordenadas restringidas
+
+        # Número de coordenadas restringidas (contador)
         self.num_restrained_coord = 0
+
         # Percorre as linhas da matriz de suporte
-        for row in range(len(self.matrix_supports)):
+        for row in range(self.num_supports):
             # Percorre a segunda e terceira colunas da matriz de suporte
             for column in range(1, len(self.matrix_supports[0])):
                 # Verifica se há apoio na direção x ou y
                 if self.matrix_supports[row, column] == 1:
                     self.num_restrained_coord += 1
+
         # Cálculo do número de graus de liberdade
         self.num_dof = 2 * self.num_nodes - self.num_restrained_coord
 
     def get_structure_coord_numbers(self):
         """
-        Monta a matriz com os números associados às coordenadas dos nós da
-        estrutura.
+        Monta a matriz com os números associados às coordenadas 
+        dos nós da estrutura.
+
+        Números de coordenadas maiores ou iguais ao número de graus
+        de liberdade estão associados a coordenadas restringidas por
+        apoios.
         """
+
         # Valores auxiliares
         num_dof = self.num_dof
         matrix_supports = self.matrix_supports
+
         # Montagem da matriz coluna dos números das coordenadas
-        self.structure_coord_numbers = np.zeros(
-            [2 * self.num_nodes], dtype=int)
+        self.structure_coord_numbers = np.zeros([2*self.num_nodes], dtype=int)
+
         # Contadores auxiliares
         count_dof = 0
         count_restrained = num_dof
+
         # Percorre os nós da estrutura
         for node in range(self.num_nodes):
-            is_support = False
+            has_support = False
+
             # Percorre a matriz dos apoios
-            for support_node in range(len(matrix_supports)):
+            for support_node in range(self.num_supports):
                 # Verifica se o nó avaliado contém um apoio
                 if matrix_supports[support_node, 0] == node:
-                    is_support = True
+                    has_support = True
+
                     # Percorre as direções (x = 0, y = 1)
-                    for direction in range(2):
-                        coord_number = 2 * node + direction
+                    for i in range(2):
+                        coord_number = 2*node + i
                         # Verifica se o apoio está na direção avaliada
-                        if matrix_supports[support_node, direction + 1] == 1:
+                        # Atribui o número de coordenada (-1 pela indexação do python)
+                        if matrix_supports[support_node, i + 1] == 1:
                             count_restrained += 1
                             self.structure_coord_numbers[coord_number] = count_restrained - 1
                         else:
                             count_dof += 1
                             self.structure_coord_numbers[coord_number] = count_dof - 1
-            if not is_support:
-                for direction in range(2):
-                    coord_number = 2 * node + direction
+
+            if not has_support:
+                # Percorre as direções (x = 0, y = 1)
+                for i in range(2):
+                    coord_number = 2 * node + i
                     count_dof += 1
+                    # Atribui o número de coordenada (-1 pela indexação do python)
                     self.structure_coord_numbers[coord_number] = count_dof - 1
 
     def calculate_structure_stiffness_matrix(self):
         """Calcula a matriz de rigidez da ESTRUTURA."""
+
         # Valores auxiliares
         num_dof = self.num_dof
         matrix_members = self.matrix_members
+
         # Gerando as matrizes com zeros
         K = np.zeros([4, 4])
         S = np.zeros([num_dof, num_dof])
+
+        # Percorrendo todas as barras da estrutura
         for member in matrix_members:
             # Informações das barras
+            # beg_node = nó inicial da barra
+            # end_node = nó final da barra
             beg_node = member[0]
             end_node = member[1]
             material_type = member[2]
             cross_section_type = member[3]
+
+            # Dados obtidos após a leitura da matriz de membros
             E = self.matrix_E[material_type]
             A = self.matrix_areas[cross_section_type]
             x_beg = self.matrix_node_coords[beg_node, 0]
             y_beg = self.matrix_node_coords[beg_node, 1]
             x_end = self.matrix_node_coords[end_node, 0]
             y_end = self.matrix_node_coords[end_node, 1]
+
+            # Cálculo do comprimento da barra
             L = np.sqrt((x_end-x_beg)**2 + (y_end-y_beg)**2)
             # cs = cos e sn = sen
             cs = (x_end-x_beg) / L
             sn = (y_end-y_beg) / L
-            # Montagem da matriz de rigidez do elemento no SCG
+
+            # Montagem da matriz de rigidez do elemento no SCG (triplo produto matricial)
             self.assembly_K(E, A, L, cs, sn, K)
+            # Montagem da matriz de rigidez da estrutura excluindo as coordenadas restringidas
             self.assembly_S(beg_node, end_node, K, S)
-        # print(f"Structure Stiffness Matrix:\n{S}\n")
+
+        # Atribuição da matriz de rigidez da estrutura como atributo do objeto
         self.structure_stiffness_matrix = S
 
     def assembly_K(self, E, A, L, cs, sn, K):
         """
         Preenche a matriz de rigidez do ELEMENTO (K) a partir dos parâmetros
+        recebidos e efetuando o triplo produto matricial
 
         Parâmetros:
 
@@ -221,7 +242,8 @@ class Truss_2D:
 
     def assembly_S(self, beg_node, end_node, K, S):
         """
-        Preenche a matriz de rigidez da ESTRUTURA
+        Preenche a matriz de rigidez da ESTRUTURA excluindo as linhas e colunas
+        associadas a coordenadas restringidas pelos apoios.
 
         Parâmetros:
 
@@ -230,47 +252,67 @@ class Truss_2D:
             [K]: Matriz de rigidez do elemento no SCG
             [S]: Matriz de rigidez da estrutura a ser preenchida
         """
+
+        # Valores auxiliares
         num_dof = self.num_dof
         coord_numbers = self.structure_coord_numbers
+
+        # Percorre as linhas da matriz de rigidez do elemento
         for row_K in range(4):
+            # Verifica se a linha está associada ao nó inicial ou final
             if row_K < 2:
                 row_code_number_1 = 2 * beg_node + row_K
             else:
                 row_code_number_1 = 2 * end_node + (row_K - 2)
             row_S = coord_numbers[row_code_number_1]
+            # Verifica se a linha está associada a uma coordenada restringida
             if row_S < num_dof:
+                # Percorre as colunas da matriz de rigidez do elemento
                 for column_K in range(4):
                     if column_K < 2:
                         row_code_number_2 = 2 * beg_node + column_K
                     else:
                         row_code_number_2 = 2 * end_node + (column_K - 2)
                     column_S = coord_numbers[row_code_number_2]
+                    # Verifica se a coluna está associada a uma coordenada restringida
                     if column_S < num_dof:
+                        # Adiciona o valor pertinente à matriz de rigidez da estrutura
                         S[row_S, column_S] += K[row_K, column_K]
 
     def assembly_node_load_vector(self):
         """Monta o vetor de carregamentos nodais."""
+
+        # Valores auxiliares
         num_dof = self.num_dof
-        self.node_load_vector = np.zeros([num_dof])
         coord_numbers = self.structure_coord_numbers
-        for row in range(len(self.matrix_forces_location)):
+
+        # Preenchendo o vetor desejado com zeros
+        self.node_load_vector = np.zeros([num_dof])
+
+        # Percorre as linhas com os nós de aplicações de forças
+        for row in range(self.num_forces):
             node = self.matrix_forces_location[row]
             row_coord_number = 2 * node
             N1 = coord_numbers[row_coord_number]
             N2 = coord_numbers[row_coord_number + 1]
+            # Verifica se a coordenada é restringida por algum apoio
             if N1 < num_dof:
                 self.node_load_vector[N1] += self.matrix_forces_magnitude[row, 0]
+            # Verifica se a coordenada é restringida por algum apoio
             if N2 < num_dof:
                 self.node_load_vector[N2] += self.matrix_forces_magnitude[row, 1]
 
     def solve_node_displacements(self):
         """Calcula os deslocamentos nodais."""
         node_displacements = np.linalg.solve(
-            self.structure_stiffness_matrix, self.node_load_vector)
+            self.structure_stiffness_matrix, self.node_load_vector
+        )
         return node_displacements
 
     def calculate_member_forces(self):
         """Calcula os esforços normais nas barras."""
+
+        # Valores auxiliares
         matrix_members = self.matrix_members
         R = np.zeros([self.num_restrained_coord])
         for member in matrix_members:
@@ -301,6 +343,13 @@ class Truss_2D:
         print(R)
 
     def assembly_T(self, cs, sn):
+        """
+        Preenche a matriz de transformação de coordenadas.
+
+        Parâmetros:
+            [cs]: Cosseno (matriz de rotação)
+            [sn]: Seno (matriz de rotação)
+        """
         T = np.zeros([4, 4])
         T[0, 0] = cs
         T[0, 1] = sn
@@ -314,30 +363,44 @@ class Truss_2D:
 
     def assembly_v(self, beg_node, end_node):
         """
-        Montagem do vetor de deslocamentos nodais no SCL (v)
+        Preenche o vetor de deslocamentos nodais no SCL
 
         Parâmetros:
-            [beg_node]: nó inicial do elemento
-            [end_node]: nó final do elemento
+
+            [beg_node]: Nó inicial do elemento
+            [end_node]: Nó final do elemento
         """
         # Valores auxiliares
         node_displacements = self.solve_node_displacements()
         coord_numbers = self.structure_coord_numbers
+
         # Criação do vetor com todos os elementos iguais a zero
         v = np.zeros([4])
+
         # Percorre as coordenadas do nó inicial e verifica se o deslocamento é livre
         for i in range(2):
             coord_number = coord_numbers[2*beg_node + i]
             if coord_number < self.num_dof:
                 v[i] = node_displacements[coord_number]
+
         # Percorre as coordenadas do nó final e verifica se o deslocamento é livre
         for j in range(2, 4):
             coord_number = coord_numbers[2*end_node + (j-2)]
             if coord_number < self.num_dof:
                 v[j] = node_displacements[coord_number]
+
         return v
 
     def assembly_k(self, E, A, L):
+        """
+        Preenche a matriz de rigidez do elemento no SCL.
+
+        Parâmetros:
+
+            [E]: Módulo de elasticidade longitudinal
+            [A]: Área da seção transversal da barra
+            [L]: Comprimento da barra
+        """
         k = np.zeros([4, 4])
         axial_stiffness = E * A / (12*L)
         k[0, 0] = axial_stiffness
@@ -347,12 +410,26 @@ class Truss_2D:
         return k
 
     def assembly_R(self, beg_node, end_node, F, R):
+        """
+        Preenche o vetor de reações de apoio.
+
+        Parâmetros:
+
+            [beg_node]: Nó inicial do elemento
+            [end_node]: Nó final do elemento
+            [F]: Vetor de forças nas extremidades do elemento no SCG
+            [R]: Vetor de reações de apoio a ser preenchido
+        """
+
+        # Valores auxiliares
         coord_numbers = self.structure_coord_numbers
+
         # Percorre as coordenadas do nó inicial e verifica se o deslocamento é livre
         for i in range(2):
             coord_number = coord_numbers[2*beg_node + i]
             if coord_number >= self.num_dof:
                 R[coord_number - self.num_dof] = F[i]
+                
         # Percorre as coordenadas do nó final e verifica se o deslocamento é livre
         for j in range(2, 4):
             coord_number = coord_numbers[2*end_node + (j-2)]
