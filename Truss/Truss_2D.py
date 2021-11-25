@@ -15,6 +15,7 @@ class Truss_2D:
         # Leitura do arquivo de entrada
         with open(input_file, "r", encoding="utf-8") as inp_file:
             lines = inp_file.read().split("\n")
+
         # Armazena a quantidade de nós
         self.num_nodes = int(lines.pop(0))
         self.matrix_node_coords = np.zeros([self.num_nodes, 2])
@@ -26,6 +27,7 @@ class Truss_2D:
         # Exclui os dados já armazenados da lista
         lines = list(filter(lambda line: lines.index(
             line) >= self.num_nodes, lines))
+
         # Armazena a quantidade de apoios
         self.num_supports = int(lines.pop(0))
         self.matrix_supports = np.zeros([self.num_supports, 3], dtype=int)
@@ -38,6 +40,7 @@ class Truss_2D:
         # Exclui os dados já armazenados da lista
         lines = list(filter(lambda line: lines.index(
             line) >= self.num_supports, lines))
+
         # Armazena a quantidade de módulos de elasticidade longitudinal
         self.num_E = int(lines.pop(0))
         self.matrix_E = np.zeros([self.num_E])
@@ -47,6 +50,7 @@ class Truss_2D:
         # Exclui os dados já armazenados da lista
         lines = list(
             filter(lambda line: lines.index(line) >= self.num_E, lines))
+
         # Armazena a quantidade de áreas de seção transversal
         self.num_areas = int(lines.pop(0))
         self.matrix_areas = np.zeros([self.num_areas])
@@ -56,6 +60,7 @@ class Truss_2D:
         # Exclui os dados já armazenados da lista
         lines = list(filter(lambda line: lines.index(
             line) >= self.num_areas, lines))
+
         # Armazena o número de barras da treliça
         self.num_members = int(lines.pop(0))
         self.matrix_members = np.zeros([self.num_members, 4], dtype=int)
@@ -70,6 +75,7 @@ class Truss_2D:
         # Exclui os dados já armazenados da lista
         lines = list(filter(lambda line: lines.index(
             line) >= self.num_members, lines))
+
         # Armazena o número de forças aplicadas
         self.num_forces = int(lines.pop(0))
         self.matrix_forces_location = np.zeros([self.num_forces], dtype=int)
@@ -80,6 +86,7 @@ class Truss_2D:
             self.matrix_forces_location[force] = float(node)
             self.matrix_forces_magnitude[force, 0] = float(force_x)
             self.matrix_forces_magnitude[force, 1] = float(force_y)
+
         # PRINTS
         # print(self.matrix_node_coords)
         # print(self.matrix_supports)
@@ -88,6 +95,7 @@ class Truss_2D:
         # print(self.matrix_members)
         # print(self.matrix_forces_location)
         # print(self.matrix_forces_magnitude)
+
         # Cálculo das matrizes necessárias para a análise
         self.calculate_num_dof()
         self.get_structure_coord_numbers()
@@ -280,8 +288,25 @@ class Truss_2D:
             # cs = cos e sn = sen
             cs = (x_end-x_beg) / L
             sn = (y_end-y_beg) / L
-            print("Member:")
-            print(f"{self.assembly_v(beg_node, end_node)}\n")
+            T = self.assembly_T(cs, sn)
+            v = self.assembly_v(beg_node, end_node)
+            u = np.dot(T, v)
+            k = self.assembly_k(E, A, L)
+            Q = np.dot(k, u)
+            print(f"Member:")
+            print(f"{Q}\n")
+
+    def assembly_T(self, cs, sn):
+        T = np.zeros([4, 4])
+        T[0, 0] = cs
+        T[0, 1] = sn
+        T[1, 0] = -sn
+        T[1, 1] = cs
+        T[2, 2] = cs
+        T[2, 3] = sn
+        T[3, 2] = -sn
+        T[3, 3] = cs
+        return T
 
     def assembly_v(self, beg_node, end_node):
         """
@@ -307,6 +332,15 @@ class Truss_2D:
             if coord_number < self.num_dof:
                 v[j] = node_displacements[coord_number]
         return v
+
+    def assembly_k(self, E, A, L):
+        k = np.zeros([4, 4])
+        axial_stiffness = E * A / (12*L)
+        k[0, 0] = axial_stiffness
+        k[0, 2] = -axial_stiffness
+        k[2, 0] = -axial_stiffness
+        k[2, 2] = axial_stiffness
+        return k
 
 
 if __name__ == "__main__":
