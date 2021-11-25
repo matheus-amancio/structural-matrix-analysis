@@ -10,7 +10,7 @@ class Truss_2D:
 
         Parâmetros
 
-            input_file: Caminho do arquivo com os dados de entrada.
+            [input_file]: Caminho do arquivo com os dados de entrada.
         """
         # Leitura do arquivo de entrada
         with open(input_file, "r", encoding="utf-8") as inp_file:
@@ -182,12 +182,12 @@ class Truss_2D:
 
         Parâmetros:
 
-            E: Módulo de elasticidade longitudinal
-            A: Área da seção transversal da barra
-            L: Comprimento da barra
-            cs: Cosseno (matriz de rotação)
-            sn: Seno (matriz de rotação)
-            K: Matriz de rigidez do elemento a ser preenchida
+            [E]: Módulo de elasticidade longitudinal
+            [A]: Área da seção transversal da barra
+            [L]: Comprimento da barra
+            [cs]: Cosseno (matriz de rotação)
+            [sn]: Seno (matriz de rotação)
+            [K]: Matriz de rigidez do elemento a ser preenchida
         """
         axial_stiffness = E * A / (12*L)
         # z1, z2 e z3 representam os produtos entre a rigidez axial e os senos e cossenos
@@ -214,13 +214,13 @@ class Truss_2D:
     def assembly_S(self, beg_node, end_node, K, S):
         """
         Preenche a matriz de rigidez da ESTRUTURA
-        
+
         Parâmetros:
 
-            beg_node: Nó inicial do elemento
-            end_node: Nó final do elemento
-            K: Matriz de rigidez do elemento no SCG
-            S: Matriz de rigidez da estrutura a ser preenchida
+            [beg_node]: Nó inicial do elemento
+            [end_node]: Nó final do elemento
+            [K]: Matriz de rigidez do elemento no SCG
+            [S]: Matriz de rigidez da estrutura a ser preenchida
         """
         num_dof = self.num_dof
         coord_numbers = self.structure_coord_numbers
@@ -254,17 +254,67 @@ class Truss_2D:
                 self.node_load_vector[N1] += self.matrix_forces_magnitude[row, 0]
             if N2 < num_dof:
                 self.node_load_vector[N2] += self.matrix_forces_magnitude[row, 1]
-    
+
     def solve_node_displacements(self):
         """Calcula os deslocamentos nodais."""
-        self.node_displacements = np.linalg.solve(self.structure_stiffness_matrix, self.node_load_vector)
+        node_displacements = np.linalg.solve(
+            self.structure_stiffness_matrix, self.node_load_vector)
+        return node_displacements
+
+    def calculate_member_forces(self):
+        """Calcula os esforços normais nas barras."""
+        matrix_members = self.matrix_members
+        for member in matrix_members:
+            # Informações das barras
+            beg_node = member[0]
+            end_node = member[1]
+            material_type = member[2]
+            cross_section_type = member[3]
+            E = self.matrix_E[material_type]
+            A = self.matrix_areas[cross_section_type]
+            x_beg = self.matrix_node_coords[beg_node, 0]
+            y_beg = self.matrix_node_coords[beg_node, 1]
+            x_end = self.matrix_node_coords[end_node, 0]
+            y_end = self.matrix_node_coords[end_node, 1]
+            L = np.sqrt((x_end-x_beg)**2 + (y_end-y_beg)**2)
+            # cs = cos e sn = sen
+            cs = (x_end-x_beg) / L
+            sn = (y_end-y_beg) / L
+            print("Member:")
+            print(f"{self.assembly_v(beg_node, end_node)}\n")
+
+    def assembly_v(self, beg_node, end_node):
+        """
+        Montagem do vetor de deslocamentos nodais no SCL (v)
+
+        Parâmetros:
+            [beg_node]: nó inicial do elemento
+            [end_node]: nó final do elemento
+        """
+        # Valores auxiliares
+        node_displacements = self.solve_node_displacements()
+        coord_numbers = self.structure_coord_numbers
+        # Criação do vetor com todos os elementos iguais a zero
+        v = np.zeros([4])
+        # Percorre as coordenadas do nó inicial e verifica se o deslocamento é livre
+        for i in range(2):
+            coord_number = coord_numbers[2*beg_node + i]
+            if coord_number < self.num_dof:
+                v[i] = node_displacements[coord_number]
+        # Percorre as coordenadas do nó final e verifica se o deslocamento é livre
+        for j in range(2, 4):
+            coord_number = coord_numbers[2*end_node + (j-2)]
+            if coord_number < self.num_dof:
+                v[j] = node_displacements[coord_number]
+        return v
 
 
 if __name__ == "__main__":
     # data_path = pathlib.Path(__file__).parent / "data/truss2d_input_file.txt"
     data_path = pathlib.Path(__file__).parent / "data/exemplo_livro.txt"
     trelica = Truss_2D(data_path)
-    trelica.solve_node_displacements()
+    # trelica.solve_node_displacements()
+    trelica.calculate_member_forces()
     # print(trelica.structure_coord_numbers)
     # print(trelica.structure_stiffness_matrix)
     # trelica.write_node_load_vector()
