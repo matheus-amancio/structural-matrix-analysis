@@ -272,6 +272,7 @@ class Truss_2D:
     def calculate_member_forces(self):
         """Calcula os esforços normais nas barras."""
         matrix_members = self.matrix_members
+        R = np.zeros([self.num_restrained_coord])
         for member in matrix_members:
             # Informações das barras
             beg_node = member[0]
@@ -293,8 +294,11 @@ class Truss_2D:
             u = np.dot(T, v)
             k = self.assembly_k(E, A, L)
             Q = np.dot(k, u)
-            print(f"Member:")
-            print(f"{Q}\n")
+            F = np.dot(T.T, Q)
+            self.assembly_R(beg_node, end_node, F, R)
+            # print(f"Member:")
+            # print(f"{F}\n")
+        print(R)
 
     def assembly_T(self, cs, sn):
         T = np.zeros([4, 4])
@@ -341,6 +345,19 @@ class Truss_2D:
         k[2, 0] = -axial_stiffness
         k[2, 2] = axial_stiffness
         return k
+
+    def assembly_R(self, beg_node, end_node, F, R):
+        coord_numbers = self.structure_coord_numbers
+        # Percorre as coordenadas do nó inicial e verifica se o deslocamento é livre
+        for i in range(2):
+            coord_number = coord_numbers[2*beg_node + i]
+            if coord_number >= self.num_dof:
+                R[coord_number - self.num_dof] = F[i]
+        # Percorre as coordenadas do nó final e verifica se o deslocamento é livre
+        for j in range(2, 4):
+            coord_number = coord_numbers[2*end_node + (j-2)]
+            if coord_number >= self.num_dof:
+                R[coord_number - self.num_dof] = F[j]
 
 
 if __name__ == "__main__":
