@@ -1,3 +1,24 @@
+"""
+Glossário:
+
+SCG = sistema de coordenadas global
+SCL = sistema de coordenadas local
+
+K = matriz de rigidez do elemento no SCG
+k = matriz de rigidez do elemento no SCL
+
+v = deslocamentos nodais do elemento no SCG
+u = deslocamento nodais do elemento no SCL
+
+F = forças nodais do elemento no SCG
+Q = forças nodais do elemento no SCL
+
+P = forças globais da estrutura
+S = matriz de rigidez global da estrutura
+d = deslocamentos globais nodais
+R = reações de apoio
+"""
+
 import pathlib
 import numpy as np
 
@@ -12,6 +33,7 @@ class Truss_2D:
 
             [input_file]: Caminho do arquivo com os dados de entrada.
         """
+        self.file_name = input_file
         # Leitura do arquivo de entrada
         with open(input_file, "r", encoding="utf-8") as inp_file:
             lines = inp_file.read().split("\n")
@@ -218,7 +240,7 @@ class Truss_2D:
             [sn]: Seno (matriz de rotação)
             [K]: Matriz de rigidez do elemento a ser preenchida
         """
-        axial_stiffness = E * A / (12*L)
+        axial_stiffness = E * A / (L)
         # z1, z2 e z3 representam os produtos entre a rigidez axial e os senos e cossenos
         z1 = axial_stiffness * cs ** 2
         z2 = axial_stiffness * sn ** 2
@@ -314,7 +336,12 @@ class Truss_2D:
 
         # Valores auxiliares
         matrix_members = self.matrix_members
+
+        # Vetores que armazenam esforços nas barras e reações de apoio
+        self.member_forces = np.empty((0, 4))
         R = np.zeros([self.num_restrained_coord])
+
+        # Para cada elemento
         for member in matrix_members:
             # Informações das barras
             beg_node = member[0]
@@ -331,16 +358,29 @@ class Truss_2D:
             # cs = cos e sn = sen
             cs = (x_end-x_beg) / L
             sn = (y_end-y_beg) / L
+
+            # Matriz de transformação de rotação
             T = self.assembly_T(cs, sn)
+
+            # Matriz de deslocamentos nodais do elemento no SCG
             v = self.assembly_v(beg_node, end_node)
+            # Matriz de deslocamentos nodais do elemento no SCL
             u = np.dot(T, v)
+
+            # Matriz de rigidez do elemento
             k = self.assembly_k(E, A, L)
+
+            # Vetor de forças de extremidade do elemento no SCL
             Q = np.dot(k, u)
+            self.member_forces = np.append(
+                self.member_forces, np.array([Q]), axis=0)
+
+            # Vetor de forças de extremidade do elemento no SCG
             F = np.dot(T.T, Q)
+            # Preenchimento das reações de apoio
             self.assembly_R(beg_node, end_node, F, R)
-            # print(f"Member:")
-            # print(f"{F}\n")
-        print(R)
+
+        self.support_reactions = R
 
     def assembly_T(self, cs, sn):
         """
@@ -402,7 +442,7 @@ class Truss_2D:
             [L]: Comprimento da barra
         """
         k = np.zeros([4, 4])
-        axial_stiffness = E * A / (12*L)
+        axial_stiffness = E * A / (L)
         k[0, 0] = axial_stiffness
         k[0, 2] = -axial_stiffness
         k[2, 0] = -axial_stiffness
@@ -429,21 +469,158 @@ class Truss_2D:
             coord_number = coord_numbers[2*beg_node + i]
             if coord_number >= self.num_dof:
                 R[coord_number - self.num_dof] = F[i]
-                
+
         # Percorre as coordenadas do nó final e verifica se o deslocamento é livre
         for j in range(2, 4):
             coord_number = coord_numbers[2*end_node + (j-2)]
             if coord_number >= self.num_dof:
                 R[coord_number - self.num_dof] = F[j]
 
+    def show_results(self, save_file=False, output_file="results.txt"):
+        case = self.file_name.with_suffix("").name
+
+        output_msg = "".center(75, '#') + '\n'
+        output_msg += " INÍCIO DA ANÁLISE ".center(75, '#') + '\n'
+        output_msg += "".center(75, '#') + '\n'
+        output_msg += "".center(75, '-') + '\n'
+
+        output_msg += f"Caso analisado: {case}\n"
+
+        output_msg += "".center(75, '-') + '\n'
+
+        output_msg += f"Número de nós: {self.num_nodes}\n"
+        output_msg += f"Número de barras: {self.num_members}\n"
+        output_msg += f"Número de barras: {self.num_members}\n"
+
+        output_msg += "".center(75, '-') + '\n'
+
+        output_msg += " Nós ".center(75, '-') + '\n'
+        output_msg += f"{'Nó'.center(4)} | {'Coordenada X'.center(14)} | {'Coordenada Y'.center(14)}\n"
+
+        for i, node in enumerate(self.matrix_node_coords):
+            node_number = f"{i}".center(4)
+            x = f"{node[0]:.3f}".center(14)
+            y = f"{node[1]:.3f}".center(14)
+            output_msg += ' | '.join([node_number, x, y]) + '\n'
+
+        output_msg += "".center(75, '-') + '\n'
+
+        output_msg += " Barras ".center(75, '-') + '\n'
+        output_msg += f"{'Barra'.center(8)} | {'Nó inicial'.center(12)} | {'Nó final'.center(10)} | {'E'.center(10)} | {'A'.center(10)}\n"
+
+        for i, member in enumerate(self.matrix_members):
+            num_member = f"{i}".center(8)
+            beg_node = f"{member[0]}".center(12)
+            end_node = f"{member[1]}".center(10)
+            material_type = member[2]
+            cross_section_type = member[3]
+            E = f"{self.matrix_E[material_type]:.2f}".center(10)
+            A = f"{self.matrix_areas[cross_section_type]:.2f}".center(10)
+            output_msg += ' | '.join([num_member,
+                                     beg_node, end_node, E, A]) + '\n'
+
+        output_msg += "".center(75, '-') + '\n'
+
+        output_msg += " Apoios ".center(75, '-') + '\n'
+        output_msg += f"{'Nó'.center(4)} | {'Restringe X'.center(13)} | {'Restringe Y'.center(13)}\n"
+
+        for support in self.matrix_supports:
+            node = f"{support[0]}".center(4)
+            x_has_support = "Sim".center(
+                13) if support[1] else "Não".center(13)
+            y_has_support = "Sim".center(
+                13) if support[2] else "Não".center(13)
+            output_msg += ' | '.join([node, x_has_support,
+                                     y_has_support]) + '\n'
+
+        output_msg += "".center(75, '-') + '\n'
+
+        output_msg += " Forças nodais ".center(75, '-') + '\n'
+        output_msg += f"{'Nó'.center(4)} | {'Componente X'.center(14)} | {'Componente Y'.center(14)}\n"
+
+        for i, node in enumerate(self.matrix_forces_location):
+            node = f"{node}".center(4)
+            x_force = f"{self.matrix_forces_magnitude[i, 0]}".center(14)
+            y_force = f"{self.matrix_forces_magnitude[i, 1]}".center(14)
+            output_msg += ' | '.join([node, x_force, y_force]) + '\n'
+
+        self.calculate_member_forces()
+
+        # reaction_vector
+        R = list(np.copy(self.support_reactions))
+        supports = self.matrix_supports
+        reaction_matrix = np.zeros([self.num_supports, 3])
+
+        for i in range(self.num_supports):
+            reaction_matrix[i, 0] = self.matrix_supports[i, 0]
+            if supports[i, 1] == 1:
+                reaction_matrix[i, 1] = R.pop(0)
+            if supports[i, 2] == 1:
+                reaction_matrix[i, 2] = R.pop(0)
+
+        output_msg += "".center(75, '-') + '\n'
+
+        output_msg += " Reações de apoio ".center(75, '-') + '\n'
+        output_msg += f"{'Nó'.center(4)} | {'Componente X'.center(14)} | {'Componente Y'.center(14)}\n"
+
+        for node in reaction_matrix:
+            num_node = f"{int(node[0])}".center(4)
+            x_reaction = f"{node[1]:.3f}".center(14)
+            y_reaction = f"{node[2]:.3f}".center(14)
+            output_msg += ' | '.join([num_node, x_reaction, y_reaction]) + '\n'
+
+        node_displacements = list(np.copy(self.solve_node_displacements()))
+        node_displacements_matrix = np.zeros([self.num_nodes, 3])
+
+        for i in range(self.num_nodes):
+            node_displacements_matrix[i, 0] = i
+
+        for i in range(self.num_nodes):
+            for j in range(2):
+                coord_number_row = 2*i + j
+                coord_number = self.structure_coord_numbers[coord_number_row] 
+                if coord_number < self.num_dof:
+                    node_displacements_matrix[i, j+1] = node_displacements.pop(0)
+
+        output_msg += "".center(75, '-') + '\n'
+
+        output_msg += " Deslocamentos nodais ".center(75, '-') + '\n'
+        output_msg += f"{'Nó'.center(4)} | {'Direção X'.center(18)} | {'Direção Y'.center(18)}\n"
+
+        for node in node_displacements_matrix:
+            num_node = f"{int(node[0])}".center(4)
+            x_direction = f"{node[1]:.5f}".center(18)
+            y_direction = f"{node[2]:.5f}".center(18)
+            output_msg += ' | '.join([num_node, x_direction, y_direction]) + '\n'
+
+        output_msg += "".center(75, '-') + '\n'
+
+        output_msg += " Esforço normal ".center(75, '-') + '\n'
+        output_msg += f"{'Barra'.center(8)} | {'Esforço'.center(9)}\n"
+
+        for member in range(self.num_members):
+            num_member = f"{member}".center(8)
+            if self.member_forces[member, 0] > 0:
+                axial_force = f"{abs(self.member_forces[member, 0]):.3f} (Compressão)".center(14)
+            else:
+                axial_force = f"{abs(self.member_forces[member, 0]):.3f} (Tração)".center(14)
+            output_msg += ' | '.join([num_member, axial_force]) + '\n'
+
+        
+        output_msg += "".center(75, '-') + '\n'
+        output_msg += "".center(75, '#') + '\n'
+        output_msg += " FIM DA ANÁLISE ".center(75, '#') + '\n'
+        output_msg += "".center(75, '#')
+        
+        if save_file:
+            with open(output_file, "w", encoding="utf-8") as out_file:
+                out_file.write(output_msg)
+
+        print(output_msg)
+
 
 if __name__ == "__main__":
-    # data_path = pathlib.Path(__file__).parent / "data/truss2d_input_file.txt"
-    data_path = pathlib.Path(__file__).parent / "data/exemplo_livro.txt"
+    data_path = pathlib.Path(__file__).parent / "data/truss2d_input_file.txt"
+    # data_path = pathlib.Path(__file__).parent / "data/exemplo_livro.txt"
     trelica = Truss_2D(data_path)
-    # trelica.solve_node_displacements()
-    trelica.calculate_member_forces()
-    # print(trelica.structure_coord_numbers)
-    # print(trelica.structure_stiffness_matrix)
-    # trelica.write_node_load_vector()
-    # print(trelica.node_load_vector)
+    trelica.show_results(save_file=True)
