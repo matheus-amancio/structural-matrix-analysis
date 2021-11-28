@@ -112,8 +112,8 @@ class Truss_2D:
         # Determinação das matrizes necessárias para a análise
         self.calculate_num_dof()
         self.get_structure_coord_numbers()
-        self.calculate_structure_stiffness_matrix()
-        self.assembly_node_load_vector()
+        # self.calculate_structure_stiffness_matrix()
+        # self.assembly_node_load_vector()
 
     def calculate_num_dof(self):
         """Calcula o número de graus de liberdade da estrutura."""
@@ -149,39 +149,11 @@ class Truss_2D:
         # Montagem da matriz coluna dos números das coordenadas
         self.structure_coord_numbers = np.zeros([2*self.num_nodes], dtype=int)
 
-        # Contadores auxiliares
-        count_dof = 0
-        count_restrained = num_dof
-
         # Percorre os nós da estrutura
-        for node in range(self.num_nodes):
-            has_support = False
+        for i in range(self.num_nodes):
+            for j in range(2):
+                self.structure_coord_numbers[2*i + j] = 2*i + j
 
-            # Percorre a matriz dos apoios
-            for support_node in range(self.num_supports):
-                # Verifica se o nó avaliado contém um apoio
-                if matrix_supports[support_node, 0] == node:
-                    has_support = True
-
-                    # Percorre as direções (x = 0, y = 1)
-                    for i in range(2):
-                        coord_number = 2*node + i
-                        # Verifica se o apoio está na direção avaliada
-                        # Atribui o número de coordenada (-1 pela indexação do python)
-                        if matrix_supports[support_node, i + 1] == 1:
-                            count_restrained += 1
-                            self.structure_coord_numbers[coord_number] = count_restrained - 1
-                        else:
-                            count_dof += 1
-                            self.structure_coord_numbers[coord_number] = count_dof - 1
-
-            if not has_support:
-                # Percorre as direções (x = 0, y = 1)
-                for i in range(2):
-                    coord_number = 2 * node + i
-                    count_dof += 1
-                    # Atribui o número de coordenada (-1 pela indexação do python)
-                    self.structure_coord_numbers[coord_number] = count_dof - 1
 
     def calculate_structure_stiffness_matrix(self):
         """Calcula a matriz de rigidez da ESTRUTURA."""
@@ -623,4 +595,4 @@ if __name__ == "__main__":
     data_path = pathlib.Path(__file__).parent / "data/truss2d_input_file.txt"
     # data_path = pathlib.Path(__file__).parent / "data/exemplo_livro.txt"
     trelica = Truss_2D(data_path)
-    trelica.show_results(save_file=True)
+    print(trelica.structure_coord_numbers)
