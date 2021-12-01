@@ -16,7 +16,6 @@ Q = forças nodais do elemento no SCL
 P = forças globais da estrutura
 S = matriz de rigidez global da estrutura
 d = deslocamentos globais nodais
-R = reações de apoio
 """
 
 import pathlib
@@ -339,7 +338,7 @@ class Truss_2D:
 
         # Vetores que armazenam esforços nas barras e reações de apoio
         self.member_forces = np.empty((0, 4))
-        R = np.zeros([self.num_restrained_coord])
+        reaction_vector = np.zeros([self.num_restrained_coord])
 
         # Para cada elemento
         for member in matrix_members:
@@ -378,9 +377,9 @@ class Truss_2D:
             # Vetor de forças de extremidade do elemento no SCG
             F = np.dot(T.T, Q)
             # Preenchimento das reações de apoio
-            self.assembly_R(beg_node, end_node, F, R)
+            self.assembly_reaction_vector(beg_node, end_node, F, reaction_vector)
 
-        self.support_reactions = R
+        self.support_reactions = reaction_vector
 
     def assembly_T(self, cs, sn):
         """
@@ -449,7 +448,7 @@ class Truss_2D:
         k[2, 2] = axial_stiffness
         return k
 
-    def assembly_R(self, beg_node, end_node, F, R):
+    def assembly_reaction_vector(self, beg_node, end_node, F, reaction_vector):
         """
         Preenche o vetor de reações de apoio.
 
@@ -458,7 +457,7 @@ class Truss_2D:
             [beg_node]: Nó inicial do elemento
             [end_node]: Nó final do elemento
             [F]: Vetor de forças nas extremidades do elemento no SCG
-            [R]: Vetor de reações de apoio a ser preenchido
+            [reaction_vector]: Vetor de reações de apoio a ser preenchido
         """
 
         # Valores auxiliares
@@ -468,15 +467,25 @@ class Truss_2D:
         for i in range(2):
             coord_number = coord_numbers[2*beg_node + i]
             if coord_number >= self.num_dof:
-                R[coord_number - self.num_dof] = F[i]
+                reaction_vector[coord_number - self.num_dof] = F[i]
 
         # Percorre as coordenadas do nó final e verifica se o deslocamento é livre
         for j in range(2, 4):
             coord_number = coord_numbers[2*end_node + (j-2)]
             if coord_number >= self.num_dof:
-                R[coord_number - self.num_dof] = F[j]
+                reaction_vector[coord_number - self.num_dof] = F[j]
 
     def show_results(self, save_file=False, output_file="results.txt"):
+        """
+        Exibe e salva os resultados da análise.
+
+        Parâmetros:
+
+            [save_file]: Salva os resultados em um arquivo de saída
+            [output_file]: Nome do arquivo de saída
+        """
+
+        # Nome do caso analisado
         case = self.file_name.with_suffix("").name
 
         output_msg = "".center(75, '#') + '\n'
@@ -488,12 +497,14 @@ class Truss_2D:
 
         output_msg += "".center(75, '-') + '\n'
 
+        # Informações gerais do caso
         output_msg += f"Número de nós: {self.num_nodes}\n"
         output_msg += f"Número de barras: {self.num_members}\n"
         output_msg += f"Número de barras: {self.num_members}\n"
 
         output_msg += "".center(75, '-') + '\n'
 
+        # Coordenadas dos nós
         output_msg += " Nós ".center(75, '-') + '\n'
         output_msg += f"{'Nó'.center(4)} | {'Coordenada X'.center(14)} | {'Coordenada Y'.center(14)}\n"
 
@@ -505,6 +516,7 @@ class Truss_2D:
 
         output_msg += "".center(75, '-') + '\n'
 
+        # Barras da treliça
         output_msg += " Barras ".center(75, '-') + '\n'
         output_msg += f"{'Barra'.center(8)} | {'Nó inicial'.center(12)} | {'Nó final'.center(10)} | {'E'.center(10)} | {'A'.center(10)}\n"
 
@@ -521,6 +533,7 @@ class Truss_2D:
 
         output_msg += "".center(75, '-') + '\n'
 
+        # Apoios
         output_msg += " Apoios ".center(75, '-') + '\n'
         output_msg += f"{'Nó'.center(4)} | {'Restringe X'.center(13)} | {'Restringe Y'.center(13)}\n"
 
@@ -535,6 +548,7 @@ class Truss_2D:
 
         output_msg += "".center(75, '-') + '\n'
 
+        # Forças nodais
         output_msg += " Forças nodais ".center(75, '-') + '\n'
         output_msg += f"{'Nó'.center(4)} | {'Componente X'.center(14)} | {'Componente Y'.center(14)}\n"
 
@@ -544,19 +558,20 @@ class Truss_2D:
             y_force = f"{self.matrix_forces_magnitude[i, 1]:5.4E}".center(14)
             output_msg += ' | '.join([node, x_force, y_force]) + '\n'
 
+        # Cálculo dos esforços normais nas barras
         self.calculate_member_forces()
 
-        # reaction_vector
-        R = list(np.copy(self.support_reactions))
+        # Reações de apoio
+        reactions = list(np.copy(self.support_reactions))
         supports = self.matrix_supports
         reaction_matrix = np.zeros([self.num_supports, 3])
 
         for i in range(self.num_supports):
             reaction_matrix[i, 0] = self.matrix_supports[i, 0]
             if supports[i, 1] == 1:
-                reaction_matrix[i, 1] = R.pop(0)
+                reaction_matrix[i, 1] = reactions.pop(0)
             if supports[i, 2] == 1:
-                reaction_matrix[i, 2] = R.pop(0)
+                reaction_matrix[i, 2] = reactions.pop(0)
 
         output_msg += "".center(75, '-') + '\n'
 
@@ -569,6 +584,7 @@ class Truss_2D:
             y_reaction = f"{node[2]:5.4E}".center(14)
             output_msg += ' | '.join([num_node, x_reaction, y_reaction]) + '\n'
 
+        # Deslocamentos nodais
         node_displacements = list(np.copy(self.solve_node_displacements()))
         node_displacements_matrix = np.zeros([self.num_nodes, 3])
 
@@ -595,6 +611,7 @@ class Truss_2D:
 
         output_msg += "".center(75, '-') + '\n'
 
+        # Esforços normais nas barras
         output_msg += " Esforço normal ".center(75, '-') + '\n'
         output_msg += f"{'Barra'.center(8)} | {'Esforço'.center(9)}\n"
 
@@ -612,15 +629,16 @@ class Truss_2D:
         output_msg += " FIM DA ANÁLISE ".center(75, '#') + '\n'
         output_msg += "".center(75, '#')
         
+        # Salvamento dos resultados em um arquivo txt se save_file=True
         if save_file:
             with open(output_file, "w", encoding="utf-8") as out_file:
                 out_file.write(output_msg)
 
+        # Exibição dos resultados
         print(output_msg)
 
 
 if __name__ == "__main__":
     data_path = pathlib.Path(__file__).parent / "data/truss2d_input_file.txt"
-    # data_path = pathlib.Path(__file__).parent / "data/exemplo_livro.txt"
     trelica = Truss_2D(data_path)
     trelica.show_results(save_file=True)
