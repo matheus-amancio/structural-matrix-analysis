@@ -499,8 +499,8 @@ class Truss_2D:
 
         for i, node in enumerate(self.matrix_node_coords):
             node_number = f"{i}".center(4)
-            x = f"{node[0]:.3f}".center(14)
-            y = f"{node[1]:.3f}".center(14)
+            x = f"{node[0]:5.4E}".center(14)
+            y = f"{node[1]:5.4E}".center(14)
             output_msg += ' | '.join([node_number, x, y]) + '\n'
 
         output_msg += "".center(75, '-') + '\n'
@@ -514,8 +514,8 @@ class Truss_2D:
             end_node = f"{member[1]}".center(10)
             material_type = member[2]
             cross_section_type = member[3]
-            E = f"{self.matrix_E[material_type]:.2f}".center(10)
-            A = f"{self.matrix_areas[cross_section_type]:.2f}".center(10)
+            E = f"{self.matrix_E[material_type]:5.4E}".center(10)
+            A = f"{self.matrix_areas[cross_section_type]:5.4E}".center(10)
             output_msg += ' | '.join([num_member,
                                      beg_node, end_node, E, A]) + '\n'
 
@@ -540,8 +540,8 @@ class Truss_2D:
 
         for i, node in enumerate(self.matrix_forces_location):
             node = f"{node}".center(4)
-            x_force = f"{self.matrix_forces_magnitude[i, 0]}".center(14)
-            y_force = f"{self.matrix_forces_magnitude[i, 1]}".center(14)
+            x_force = f"{self.matrix_forces_magnitude[i, 0]:5.4E}".center(14)
+            y_force = f"{self.matrix_forces_magnitude[i, 1]:5.4E}".center(14)
             output_msg += ' | '.join([node, x_force, y_force]) + '\n'
 
         self.calculate_member_forces()
@@ -565,8 +565,8 @@ class Truss_2D:
 
         for node in reaction_matrix:
             num_node = f"{int(node[0])}".center(4)
-            x_reaction = f"{node[1]:.3f}".center(14)
-            y_reaction = f"{node[2]:.3f}".center(14)
+            x_reaction = f"{node[1]:5.4E}".center(14)
+            y_reaction = f"{node[2]:5.4E}".center(14)
             output_msg += ' | '.join([num_node, x_reaction, y_reaction]) + '\n'
 
         node_displacements = list(np.copy(self.solve_node_displacements()))
@@ -589,8 +589,8 @@ class Truss_2D:
 
         for node in node_displacements_matrix:
             num_node = f"{int(node[0])}".center(4)
-            x_direction = f"{node[1]:.5f}".center(18)
-            y_direction = f"{node[2]:.5f}".center(18)
+            x_direction = f"{node[1]:5.4E}".center(18)
+            y_direction = f"{node[2]:5.4E}".center(18)
             output_msg += ' | '.join([num_node, x_direction, y_direction]) + '\n'
 
         output_msg += "".center(75, '-') + '\n'
@@ -601,9 +601,9 @@ class Truss_2D:
         for member in range(self.num_members):
             num_member = f"{member}".center(8)
             if self.member_forces[member, 0] > 0:
-                axial_force = f"{abs(self.member_forces[member, 0]):.3f} (Compressão)".center(14)
+                axial_force = f"{abs(self.member_forces[member, 0]):5.4E} (Compressão)".center(14)
             else:
-                axial_force = f"{abs(self.member_forces[member, 0]):.3f} (Tração)".center(14)
+                axial_force = f"{abs(self.member_forces[member, 0]):5.4E} (Tração)".center(14)
             output_msg += ' | '.join([num_member, axial_force]) + '\n'
 
         
