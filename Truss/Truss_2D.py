@@ -56,9 +56,9 @@ class Truss_2D:
         # Armazena os dados dos apoios (suportes)
         for support in range(self.num_supports):
             node, x_restrained, y_restrained = lines[support].split(",")
-            self.matrix_supports[support, 0] = float(node)
-            self.matrix_supports[support, 1] = float(x_restrained)
-            self.matrix_supports[support, 2] = float(y_restrained)
+            self.matrix_supports[support, 0] = int(node) - 1
+            self.matrix_supports[support, 1] = int(x_restrained)
+            self.matrix_supports[support, 2] = int(y_restrained)
         # Exclui os dados já armazenados da lista
         lines = list(filter(lambda line: lines.index(
             line) >= self.num_supports, lines))
@@ -90,10 +90,10 @@ class Truss_2D:
         for member in range(self.num_members):
             initial_node, final_node, e_type, area_type = lines[member].split(
                 ",")
-            self.matrix_members[member, 0] = float(initial_node)
-            self.matrix_members[member, 1] = float(final_node)
-            self.matrix_members[member, 2] = float(e_type)
-            self.matrix_members[member, 3] = float(area_type)
+            self.matrix_members[member, 0] = int(initial_node) - 1
+            self.matrix_members[member, 1] = int(final_node) - 1
+            self.matrix_members[member, 2] = int(e_type) - 1
+            self.matrix_members[member, 3] = int(area_type) - 1
         # Exclui os dados já armazenados da lista
         lines = list(filter(lambda line: lines.index(
             line) >= self.num_members, lines))
@@ -105,7 +105,7 @@ class Truss_2D:
         # Armazena os nós em que as forças são aplicadas e as magnitudes das forças
         for force in range(self.num_forces):
             node, force_x, force_y = lines[force].split(",")
-            self.matrix_forces_location[force] = float(node)
+            self.matrix_forces_location[force] = int(node) - 1
             self.matrix_forces_magnitude[force, 0] = float(force_x)
             self.matrix_forces_magnitude[force, 1] = float(force_y)
 
@@ -498,7 +498,7 @@ class Truss_2D:
         output_msg += f"{'Nó'.center(4)} | {'Coordenada X'.center(14)} | {'Coordenada Y'.center(14)}\n"
 
         for i, node in enumerate(self.matrix_node_coords):
-            node_number = f"{i}".center(4)
+            node_number = f"{i + 1}".center(4)
             x = f"{node[0]:5.4E}".center(14)
             y = f"{node[1]:5.4E}".center(14)
             output_msg += ' | '.join([node_number, x, y]) + '\n'
@@ -509,9 +509,9 @@ class Truss_2D:
         output_msg += f"{'Barra'.center(8)} | {'Nó inicial'.center(12)} | {'Nó final'.center(10)} | {'E'.center(10)} | {'A'.center(10)}\n"
 
         for i, member in enumerate(self.matrix_members):
-            num_member = f"{i}".center(8)
-            beg_node = f"{member[0]}".center(12)
-            end_node = f"{member[1]}".center(10)
+            num_member = f"{i + 1}".center(8)
+            beg_node = f"{member[0] + 1}".center(12)
+            end_node = f"{member[1] + 1}".center(10)
             material_type = member[2]
             cross_section_type = member[3]
             E = f"{self.matrix_E[material_type]:5.4E}".center(10)
@@ -525,7 +525,7 @@ class Truss_2D:
         output_msg += f"{'Nó'.center(4)} | {'Restringe X'.center(13)} | {'Restringe Y'.center(13)}\n"
 
         for support in self.matrix_supports:
-            node = f"{support[0]}".center(4)
+            node = f"{support[0] + 1}".center(4)
             x_has_support = "Sim".center(
                 13) if support[1] else "Não".center(13)
             y_has_support = "Sim".center(
@@ -539,7 +539,7 @@ class Truss_2D:
         output_msg += f"{'Nó'.center(4)} | {'Componente X'.center(14)} | {'Componente Y'.center(14)}\n"
 
         for i, node in enumerate(self.matrix_forces_location):
-            node = f"{node}".center(4)
+            node = f"{node + 1}".center(4)
             x_force = f"{self.matrix_forces_magnitude[i, 0]:5.4E}".center(14)
             y_force = f"{self.matrix_forces_magnitude[i, 1]:5.4E}".center(14)
             output_msg += ' | '.join([node, x_force, y_force]) + '\n'
@@ -564,7 +564,7 @@ class Truss_2D:
         output_msg += f"{'Nó'.center(4)} | {'Componente X'.center(14)} | {'Componente Y'.center(14)}\n"
 
         for node in reaction_matrix:
-            num_node = f"{int(node[0])}".center(4)
+            num_node = f"{int(node[0] + 1)}".center(4)
             x_reaction = f"{node[1]:5.4E}".center(14)
             y_reaction = f"{node[2]:5.4E}".center(14)
             output_msg += ' | '.join([num_node, x_reaction, y_reaction]) + '\n'
@@ -588,7 +588,7 @@ class Truss_2D:
         output_msg += f"{'Nó'.center(4)} | {'Direção X'.center(18)} | {'Direção Y'.center(18)}\n"
 
         for node in node_displacements_matrix:
-            num_node = f"{int(node[0])}".center(4)
+            num_node = f"{int(node[0] + 1)}".center(4)
             x_direction = f"{node[1]:5.4E}".center(18)
             y_direction = f"{node[2]:5.4E}".center(18)
             output_msg += ' | '.join([num_node, x_direction, y_direction]) + '\n'
@@ -599,7 +599,7 @@ class Truss_2D:
         output_msg += f"{'Barra'.center(8)} | {'Esforço'.center(9)}\n"
 
         for member in range(self.num_members):
-            num_member = f"{member}".center(8)
+            num_member = f"{member + 1}".center(8)
             if self.member_forces[member, 0] > 0:
                 axial_force = f"{abs(self.member_forces[member, 0]):5.4E} (Compressão)".center(14)
             else:
