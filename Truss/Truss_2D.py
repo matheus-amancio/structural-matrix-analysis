@@ -112,8 +112,8 @@ class Truss_2D:
         # Determinação das matrizes necessárias para a análise
         self.calculate_num_dof()
         self.get_structure_coord_numbers()
-        # self.calculate_structure_stiffness_matrix()
-        # self.assembly_node_load_vector()
+        self.calculate_structure_stiffness_matrix()
+        self.assembly_node_load_vector()
 
     def calculate_num_dof(self):
         """Calcula o número de graus de liberdade da estrutura."""
@@ -136,15 +136,7 @@ class Truss_2D:
         """
         Monta a matriz com os números associados às coordenadas 
         dos nós da estrutura.
-
-        Números de coordenadas maiores ou iguais ao número de graus
-        de liberdade estão associados a coordenadas restringidas por
-        apoios.
         """
-
-        # Valores auxiliares
-        num_dof = self.num_dof
-        matrix_supports = self.matrix_supports
 
         # Montagem da matriz coluna dos números das coordenadas
         self.structure_coord_numbers = np.zeros([2*self.num_nodes], dtype=int)
@@ -159,12 +151,11 @@ class Truss_2D:
         """Calcula a matriz de rigidez da ESTRUTURA."""
 
         # Valores auxiliares
-        num_dof = self.num_dof
         matrix_members = self.matrix_members
 
         # Gerando as matrizes com zeros
         K = np.zeros([4, 4])
-        S = np.zeros([num_dof, num_dof])
+        S = np.zeros([2 * self.num_nodes, 2 * self.num_nodes])
 
         # Percorrendo todas as barras da estrutura
         for member in matrix_members:
@@ -248,7 +239,6 @@ class Truss_2D:
         """
 
         # Valores auxiliares
-        num_dof = self.num_dof
         coord_numbers = self.structure_coord_numbers
 
         # Percorre as linhas da matriz de rigidez do elemento
@@ -259,29 +249,24 @@ class Truss_2D:
             else:
                 row_code_number_1 = 2 * end_node + (row_K - 2)
             row_S = coord_numbers[row_code_number_1]
-            # Verifica se a linha está associada a uma coordenada restringida
-            if row_S < num_dof:
-                # Percorre as colunas da matriz de rigidez do elemento
-                for column_K in range(4):
-                    if column_K < 2:
-                        row_code_number_2 = 2 * beg_node + column_K
-                    else:
-                        row_code_number_2 = 2 * end_node + (column_K - 2)
-                    column_S = coord_numbers[row_code_number_2]
-                    # Verifica se a coluna está associada a uma coordenada restringida
-                    if column_S < num_dof:
-                        # Adiciona o valor pertinente à matriz de rigidez da estrutura
-                        S[row_S, column_S] += K[row_K, column_K]
+            # Percorre as colunas da matriz de rigidez do elemento
+            for column_K in range(4):
+                if column_K < 2:
+                    row_code_number_2 = 2 * beg_node + column_K
+                else:
+                    row_code_number_2 = 2 * end_node + (column_K - 2)
+                column_S = coord_numbers[row_code_number_2]
+                # Adiciona o valor pertinente à matriz de rigidez da estrutura
+                S[row_S, column_S] += K[row_K, column_K]
 
     def assembly_node_load_vector(self):
         """Monta o vetor de carregamentos nodais."""
 
         # Valores auxiliares
-        num_dof = self.num_dof
         coord_numbers = self.structure_coord_numbers
 
         # Preenchendo o vetor desejado com zeros
-        self.node_load_vector = np.zeros([num_dof])
+        self.node_load_vector = np.zeros([2 * self.num_nodes])
 
         # Percorre as linhas com os nós de aplicações de forças
         for row in range(self.num_forces):
@@ -289,18 +274,31 @@ class Truss_2D:
             row_coord_number = 2 * node
             N1 = coord_numbers[row_coord_number]
             N2 = coord_numbers[row_coord_number + 1]
-            # Verifica se a coordenada é restringida por algum apoio
-            if N1 < num_dof:
-                self.node_load_vector[N1] += self.matrix_forces_magnitude[row, 0]
-            # Verifica se a coordenada é restringida por algum apoio
-            if N2 < num_dof:
-                self.node_load_vector[N2] += self.matrix_forces_magnitude[row, 1]
+            self.node_load_vector[N1] += self.matrix_forces_magnitude[row, 0]
+            self.node_load_vector[N2] += self.matrix_forces_magnitude[row, 1]
 
     def solve_node_displacements(self):
-        """Calcula os deslocamentos nodais."""
-        node_displacements = np.linalg.solve(
-            self.structure_stiffness_matrix, self.node_load_vector
-        )
+        """Calcula os deslocamentos nodais pelo método Pênalti."""
+        coord_numbers = self.structure_coord_numbers
+        matrix_supports = self.matrix_supports
+
+        _S = np.copy(self.structure_stiffness_matrix)
+        _P = np.copy(self.node_load_vector)
+
+        for support in range(self.num_supports):
+            node = matrix_supports[support, 0]
+            for i in range(2):
+                row_coord_number = 2 * node + i
+                N = coord_numbers[row_coord_number]
+                if matrix_supports[support, i + 1] == 1:
+                    for row_S in range(2 * self.num_nodes):
+                        for column_S in range(2 * self.num_nodes):
+                            if row_S == N or column_S == N:
+                                _S[row_S, column_S] = 0
+                    _S[N, N] = 1
+                    _P[N] = 0
+
+        node_displacements = np.linalg.solve(_S, _P)
         return node_displacements
 
     def calculate_member_forces(self):
@@ -449,6 +447,14 @@ class Truss_2D:
                 R[coord_number - self.num_dof] = F[j]
 
     def show_results(self, save_file=False, output_file="results.txt"):
+        """
+        Exibe e salva os resultados da análise.
+        Parâmetros:
+            [save_file]: Salva os resultados em um arquivo de saída
+            [output_file]: Nome do arquivo de saída
+        """
+
+        # Nome do caso analisado
         case = self.file_name.with_suffix("").name
 
         output_msg = "".center(75, '#') + '\n'
@@ -460,44 +466,48 @@ class Truss_2D:
 
         output_msg += "".center(75, '-') + '\n'
 
+        # Informações gerais do caso
         output_msg += f"Número de nós: {self.num_nodes}\n"
         output_msg += f"Número de barras: {self.num_members}\n"
         output_msg += f"Número de barras: {self.num_members}\n"
 
         output_msg += "".center(75, '-') + '\n'
 
+        # Coordenadas dos nós
         output_msg += " Nós ".center(75, '-') + '\n'
         output_msg += f"{'Nó'.center(4)} | {'Coordenada X'.center(14)} | {'Coordenada Y'.center(14)}\n"
 
         for i, node in enumerate(self.matrix_node_coords):
-            node_number = f"{i}".center(4)
-            x = f"{node[0]:.3f}".center(14)
-            y = f"{node[1]:.3f}".center(14)
+            node_number = f"{i + 1}".center(4)
+            x = f"{node[0]:5.4E}".center(14)
+            y = f"{node[1]:5.4E}".center(14)
             output_msg += ' | '.join([node_number, x, y]) + '\n'
 
         output_msg += "".center(75, '-') + '\n'
 
+        # Barras da treliça
         output_msg += " Barras ".center(75, '-') + '\n'
         output_msg += f"{'Barra'.center(8)} | {'Nó inicial'.center(12)} | {'Nó final'.center(10)} | {'E'.center(10)} | {'A'.center(10)}\n"
 
         for i, member in enumerate(self.matrix_members):
-            num_member = f"{i}".center(8)
-            beg_node = f"{member[0]}".center(12)
-            end_node = f"{member[1]}".center(10)
+            num_member = f"{i + 1}".center(8)
+            beg_node = f"{member[0] + 1}".center(12)
+            end_node = f"{member[1] + 1}".center(10)
             material_type = member[2]
             cross_section_type = member[3]
-            E = f"{self.matrix_E[material_type]:.2f}".center(10)
-            A = f"{self.matrix_areas[cross_section_type]:.2f}".center(10)
+            E = f"{self.matrix_E[material_type]:5.4E}".center(10)
+            A = f"{self.matrix_areas[cross_section_type]:5.4E}".center(10)
             output_msg += ' | '.join([num_member,
                                      beg_node, end_node, E, A]) + '\n'
 
         output_msg += "".center(75, '-') + '\n'
 
+        # Apoios
         output_msg += " Apoios ".center(75, '-') + '\n'
         output_msg += f"{'Nó'.center(4)} | {'Restringe X'.center(13)} | {'Restringe Y'.center(13)}\n"
 
         for support in self.matrix_supports:
-            node = f"{support[0]}".center(4)
+            node = f"{support[0] + 1}".center(4)
             x_has_support = "Sim".center(
                 13) if support[1] else "Não".center(13)
             y_has_support = "Sim".center(
@@ -507,28 +517,30 @@ class Truss_2D:
 
         output_msg += "".center(75, '-') + '\n'
 
+        # Forças nodais
         output_msg += " Forças nodais ".center(75, '-') + '\n'
         output_msg += f"{'Nó'.center(4)} | {'Componente X'.center(14)} | {'Componente Y'.center(14)}\n"
 
         for i, node in enumerate(self.matrix_forces_location):
-            node = f"{node}".center(4)
-            x_force = f"{self.matrix_forces_magnitude[i, 0]}".center(14)
-            y_force = f"{self.matrix_forces_magnitude[i, 1]}".center(14)
+            node = f"{node + 1}".center(4)
+            x_force = f"{self.matrix_forces_magnitude[i, 0]:5.4E}".center(14)
+            y_force = f"{self.matrix_forces_magnitude[i, 1]:5.4E}".center(14)
             output_msg += ' | '.join([node, x_force, y_force]) + '\n'
 
+        # Cálculo dos esforços normais nas barras
         self.calculate_member_forces()
 
-        # reaction_vector
-        R = list(np.copy(self.support_reactions))
+        # Reações de apoio
+        reactions = list(np.copy(self.support_reactions))
         supports = self.matrix_supports
         reaction_matrix = np.zeros([self.num_supports, 3])
 
         for i in range(self.num_supports):
             reaction_matrix[i, 0] = self.matrix_supports[i, 0]
             if supports[i, 1] == 1:
-                reaction_matrix[i, 1] = R.pop(0)
+                reaction_matrix[i, 1] = reactions.pop(0)
             if supports[i, 2] == 1:
-                reaction_matrix[i, 2] = R.pop(0)
+                reaction_matrix[i, 2] = reactions.pop(0)
 
         output_msg += "".center(75, '-') + '\n'
 
@@ -536,11 +548,12 @@ class Truss_2D:
         output_msg += f"{'Nó'.center(4)} | {'Componente X'.center(14)} | {'Componente Y'.center(14)}\n"
 
         for node in reaction_matrix:
-            num_node = f"{int(node[0])}".center(4)
-            x_reaction = f"{node[1]:.3f}".center(14)
-            y_reaction = f"{node[2]:.3f}".center(14)
+            num_node = f"{int(node[0] + 1)}".center(4)
+            x_reaction = f"{node[1]:5.4E}".center(14)
+            y_reaction = f"{node[2]:5.4E}".center(14)
             output_msg += ' | '.join([num_node, x_reaction, y_reaction]) + '\n'
 
+        # Deslocamentos nodais
         node_displacements = list(np.copy(self.solve_node_displacements()))
         node_displacements_matrix = np.zeros([self.num_nodes, 3])
 
@@ -560,22 +573,23 @@ class Truss_2D:
         output_msg += f"{'Nó'.center(4)} | {'Direção X'.center(18)} | {'Direção Y'.center(18)}\n"
 
         for node in node_displacements_matrix:
-            num_node = f"{int(node[0])}".center(4)
-            x_direction = f"{node[1]:.5f}".center(18)
-            y_direction = f"{node[2]:.5f}".center(18)
+            num_node = f"{int(node[0] + 1)}".center(4)
+            x_direction = f"{node[1]:5.4E}".center(18)
+            y_direction = f"{node[2]:5.4E}".center(18)
             output_msg += ' | '.join([num_node, x_direction, y_direction]) + '\n'
 
         output_msg += "".center(75, '-') + '\n'
 
+        # Esforços normais nas barras
         output_msg += " Esforço normal ".center(75, '-') + '\n'
         output_msg += f"{'Barra'.center(8)} | {'Esforço'.center(9)}\n"
 
         for member in range(self.num_members):
-            num_member = f"{member}".center(8)
+            num_member = f"{member + 1}".center(8)
             if self.member_forces[member, 0] > 0:
-                axial_force = f"{abs(self.member_forces[member, 0]):.3f} (Compressão)".center(14)
+                axial_force = f"{abs(self.member_forces[member, 0]):5.4E} (Compressão)".center(14)
             else:
-                axial_force = f"{abs(self.member_forces[member, 0]):.3f} (Tração)".center(14)
+                axial_force = f"{abs(self.member_forces[member, 0]):5.4E} (Tração)".center(14)
             output_msg += ' | '.join([num_member, axial_force]) + '\n'
 
         
@@ -584,10 +598,12 @@ class Truss_2D:
         output_msg += " FIM DA ANÁLISE ".center(75, '#') + '\n'
         output_msg += "".center(75, '#')
         
+        # Salvamento dos resultados em um arquivo txt se save_file=True
         if save_file:
             with open(output_file, "w", encoding="utf-8") as out_file:
                 out_file.write(output_msg)
 
+        # Exibição dos resultados
         print(output_msg)
 
 
@@ -595,4 +611,4 @@ if __name__ == "__main__":
     data_path = pathlib.Path(__file__).parent / "data/truss2d_input_file.txt"
     # data_path = pathlib.Path(__file__).parent / "data/exemplo_livro.txt"
     trelica = Truss_2D(data_path)
-    print(trelica.structure_coord_numbers)
+    print(trelica.solve_node_displacements())
