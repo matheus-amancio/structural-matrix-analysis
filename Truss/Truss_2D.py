@@ -55,9 +55,9 @@ class Truss_2D:
         # Armazena os dados dos apoios (suportes)
         for support in range(self.num_supports):
             node, x_restrained, y_restrained = lines[support].split(",")
-            self.matrix_supports[support, 0] = float(node)
-            self.matrix_supports[support, 1] = float(x_restrained)
-            self.matrix_supports[support, 2] = float(y_restrained)
+            self.matrix_supports[support, 0] = int(node) - 1
+            self.matrix_supports[support, 1] = int(x_restrained)
+            self.matrix_supports[support, 2] = int(y_restrained)
         # Exclui os dados já armazenados da lista
         lines = list(filter(lambda line: lines.index(
             line) >= self.num_supports, lines))
@@ -89,10 +89,10 @@ class Truss_2D:
         for member in range(self.num_members):
             initial_node, final_node, e_type, area_type = lines[member].split(
                 ",")
-            self.matrix_members[member, 0] = float(initial_node)
-            self.matrix_members[member, 1] = float(final_node)
-            self.matrix_members[member, 2] = float(e_type)
-            self.matrix_members[member, 3] = float(area_type)
+            self.matrix_members[member, 0] = int(initial_node) - 1
+            self.matrix_members[member, 1] = int(final_node) - 1
+            self.matrix_members[member, 2] = int(e_type) - 1
+            self.matrix_members[member, 3] = int(area_type) - 1
         # Exclui os dados já armazenados da lista
         lines = list(filter(lambda line: lines.index(
             line) >= self.num_members, lines))
@@ -104,7 +104,7 @@ class Truss_2D:
         # Armazena os nós em que as forças são aplicadas e as magnitudes das forças
         for force in range(self.num_forces):
             node, force_x, force_y = lines[force].split(",")
-            self.matrix_forces_location[force] = float(node)
+            self.matrix_forces_location[force] = int(node) - 1
             self.matrix_forces_magnitude[force, 0] = float(force_x)
             self.matrix_forces_magnitude[force, 1] = float(force_y)
 
