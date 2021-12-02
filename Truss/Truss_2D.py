@@ -435,15 +435,15 @@ class Truss_2D:
             if beg_node == matrix_supports[support, 0]:
                 # Percorre as coordenadas do nó inicial e verifica se o deslocamento é livre
                 for i in range(2):
-                    coord_number = coord_numbers[2*beg_node + (i-2)]
+                    coord_number = coord_numbers[2*beg_node + i]
                     if matrix_supports[support, i+1]:
-                        reaction_vector[coord_number] = F[i]
+                        reaction_vector[coord_number] += F[i]
             if end_node == matrix_supports[support, 0]:
                 # Percorre as coordenadas do nó final e verifica se o deslocamento é livre
                 for i in range(2, 4):
                     coord_number = coord_numbers[2*end_node + (i-2)]
                     if matrix_supports[support, i+1-2]:
-                        reaction_vector[coord_number] = F[i]
+                        reaction_vector[coord_number] += F[i]
 
     def show_results(self, save_file=False, output_file="results.txt"):
         """
@@ -533,13 +533,15 @@ class Truss_2D:
         reactions = np.copy(self.support_reactions)
         supports = self.matrix_supports
         reaction_matrix = np.zeros([self.num_supports, 3])
+        coord_numbers = self.structure_coord_numbers
 
-        # for i in range(self.num_supports):
-        #     node = supports[i, 0]
-        #     reaction_matrix[i, 0] = node
-        #     for j in range(2):
-        #         if supports[i, i+1] == 1:
-        #             reaction_matrix[i, 1] = reactions[2*node + i]
+        for support in range(self.num_supports):
+            node = supports[support, 0]
+            reaction_matrix[support, 0] = node
+            for i in range(2):
+                coord_number = coord_numbers[2*node + i]
+                if supports[support, i+1]:
+                    reaction_matrix[support, i+1] = reactions[coord_number]
 
         output_msg += "".center(75, '-') + '\n'
 
@@ -578,14 +580,14 @@ class Truss_2D:
 
         # Esforços normais nas barras
         output_msg += " Esforço normal ".center(75, '-') + '\n'
-        output_msg += f"{'Barra'.center(8)} | {'Esforço'.center(9)}\n"
+        output_msg += f"{'Barra'.center(8)} | {'Esforço normal'.center(20)}\n"
 
         for member in range(self.num_members):
             num_member = f"{member + 1}".center(8)
             if self.member_forces[member, 0] > 0:
-                axial_force = f"{abs(self.member_forces[member, 0]):5.4E} (Compressão)".center(14)
+                axial_force = f"{abs(self.member_forces[member, 0]):5.4E} (Compressão)".center(20)
             else:
-                axial_force = f"{abs(self.member_forces[member, 0]):5.4E} (Tração)".center(14)
+                axial_force = f"{abs(self.member_forces[member, 0]):5.4E} (Tração)".center(20)
             output_msg += ' | '.join([num_member, axial_force]) + '\n'
 
         
@@ -600,12 +602,10 @@ class Truss_2D:
                 out_file.write(output_msg)
 
         # Exibição dos resultados
-        # print(output_msg)
+        print(output_msg)
 
 
 if __name__ == "__main__":
     data_path = pathlib.Path(__file__).parent / "data/truss2d_input_file.txt"
-    # data_path = pathlib.Path(__file__).parent / "data/exemplo_livro.txt"
     trelica = Truss_2D(data_path)
-    trelica.show_results(save_file=False)
-    print(trelica.support_reactions)
+    trelica.show_results(save_file=True)
