@@ -467,13 +467,13 @@ class Truss_2D:
         for i in range(2):
             coord_number = coord_numbers[2*beg_node + i]
             if coord_number >= self.num_dof:
-                reaction_vector[coord_number - self.num_dof] = F[i]
+                reaction_vector[coord_number - self.num_dof] += F[i]
 
         # Percorre as coordenadas do nó final e verifica se o deslocamento é livre
         for j in range(2, 4):
             coord_number = coord_numbers[2*end_node + (j-2)]
             if coord_number >= self.num_dof:
-                reaction_vector[coord_number - self.num_dof] = F[j]
+                reaction_vector[coord_number - self.num_dof] += F[j]
 
     def show_results(self, save_file=False, output_file="results.txt"):
         """
@@ -567,7 +567,7 @@ class Truss_2D:
         reaction_matrix = np.zeros([self.num_supports, 3])
 
         for i in range(self.num_supports):
-            reaction_matrix[i, 0] = self.matrix_supports[i, 0]
+            reaction_matrix[i, 0] = supports[i, 0]
             if supports[i, 1] == 1:
                 reaction_matrix[i, 1] = reactions.pop(0)
             if supports[i, 2] == 1:
