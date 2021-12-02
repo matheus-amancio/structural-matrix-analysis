@@ -16,7 +16,6 @@ Q = forças nodais do elemento no SCL
 P = forças globais da estrutura
 S = matriz de rigidez global da estrutura
 d = deslocamentos globais nodais
-R = reações de apoio
 """
 
 import pathlib
@@ -309,7 +308,7 @@ class Truss_2D:
 
         # Vetores que armazenam esforços nas barras e reações de apoio
         self.member_forces = np.empty((0, 4))
-        R = np.zeros([self.num_restrained_coord])
+        reaction_vector = np.zeros([2*self.num_nodes])
 
         # Para cada elemento
         for member in matrix_members:
@@ -342,15 +341,14 @@ class Truss_2D:
 
             # Vetor de forças de extremidade do elemento no SCL
             Q = np.dot(k, u)
-            self.member_forces = np.append(
-                self.member_forces, np.array([Q]), axis=0)
+            self.member_forces = np.append(self.member_forces, np.array([Q]), axis=0)
 
             # Vetor de forças de extremidade do elemento no SCG
             F = np.dot(T.T, Q)
             # Preenchimento das reações de apoio
-            self.assembly_R(beg_node, end_node, F, R)
+            self.assembly_reaction_vector(beg_node, end_node, F, reaction_vector)
 
-        self.support_reactions = R
+        self.support_reactions = reaction_vector
 
     def assembly_T(self, cs, sn):
         """
@@ -390,14 +388,12 @@ class Truss_2D:
         # Percorre as coordenadas do nó inicial e verifica se o deslocamento é livre
         for i in range(2):
             coord_number = coord_numbers[2*beg_node + i]
-            if coord_number < self.num_dof:
-                v[i] = node_displacements[coord_number]
+            v[i] = node_displacements[coord_number]
 
         # Percorre as coordenadas do nó final e verifica se o deslocamento é livre
         for j in range(2, 4):
             coord_number = coord_numbers[2*end_node + (j-2)]
-            if coord_number < self.num_dof:
-                v[j] = node_displacements[coord_number]
+            v[j] = node_displacements[coord_number]
 
         return v
 
@@ -419,7 +415,7 @@ class Truss_2D:
         k[2, 2] = axial_stiffness
         return k
 
-    def assembly_R(self, beg_node, end_node, F, R):
+    def assembly_reaction_vector(self, beg_node, end_node, F, reaction_vector):
         """
         Preenche o vetor de reações de apoio.
 
@@ -428,23 +424,26 @@ class Truss_2D:
             [beg_node]: Nó inicial do elemento
             [end_node]: Nó final do elemento
             [F]: Vetor de forças nas extremidades do elemento no SCG
-            [R]: Vetor de reações de apoio a ser preenchido
+            [reaction_vector]: Vetor de reações de apoio a ser preenchido
         """
 
         # Valores auxiliares
         coord_numbers = self.structure_coord_numbers
+        matrix_supports = self.matrix_supports
 
-        # Percorre as coordenadas do nó inicial e verifica se o deslocamento é livre
-        for i in range(2):
-            coord_number = coord_numbers[2*beg_node + i]
-            if coord_number >= self.num_dof:
-                R[coord_number - self.num_dof] = F[i]
-
-        # Percorre as coordenadas do nó final e verifica se o deslocamento é livre
-        for j in range(2, 4):
-            coord_number = coord_numbers[2*end_node + (j-2)]
-            if coord_number >= self.num_dof:
-                R[coord_number - self.num_dof] = F[j]
+        for support in range(self.num_supports):
+            if beg_node == matrix_supports[support, 0]:
+                # Percorre as coordenadas do nó inicial e verifica se o deslocamento é livre
+                for i in range(2):
+                    coord_number = coord_numbers[2*beg_node + (i-2)]
+                    if matrix_supports[support, i+1]:
+                        reaction_vector[coord_number] = F[i]
+            if end_node == matrix_supports[support, 0]:
+                # Percorre as coordenadas do nó final e verifica se o deslocamento é livre
+                for i in range(2, 4):
+                    coord_number = coord_numbers[2*end_node + (i-2)]
+                    if matrix_supports[support, i+1-2]:
+                        reaction_vector[coord_number] = F[i]
 
     def show_results(self, save_file=False, output_file="results.txt"):
         """
@@ -531,16 +530,16 @@ class Truss_2D:
         self.calculate_member_forces()
 
         # Reações de apoio
-        reactions = list(np.copy(self.support_reactions))
+        reactions = np.copy(self.support_reactions)
         supports = self.matrix_supports
         reaction_matrix = np.zeros([self.num_supports, 3])
 
-        for i in range(self.num_supports):
-            reaction_matrix[i, 0] = self.matrix_supports[i, 0]
-            if supports[i, 1] == 1:
-                reaction_matrix[i, 1] = reactions.pop(0)
-            if supports[i, 2] == 1:
-                reaction_matrix[i, 2] = reactions.pop(0)
+        # for i in range(self.num_supports):
+        #     node = supports[i, 0]
+        #     reaction_matrix[i, 0] = node
+        #     for j in range(2):
+        #         if supports[i, i+1] == 1:
+        #             reaction_matrix[i, 1] = reactions[2*node + i]
 
         output_msg += "".center(75, '-') + '\n'
 
@@ -562,10 +561,7 @@ class Truss_2D:
 
         for i in range(self.num_nodes):
             for j in range(2):
-                coord_number_row = 2*i + j
-                coord_number = self.structure_coord_numbers[coord_number_row] 
-                if coord_number < self.num_dof:
-                    node_displacements_matrix[i, j+1] = node_displacements.pop(0)
+                node_displacements_matrix[i, j+1] = node_displacements.pop(0)
 
         output_msg += "".center(75, '-') + '\n'
 
@@ -604,11 +600,12 @@ class Truss_2D:
                 out_file.write(output_msg)
 
         # Exibição dos resultados
-        print(output_msg)
+        # print(output_msg)
 
 
 if __name__ == "__main__":
     data_path = pathlib.Path(__file__).parent / "data/truss2d_input_file.txt"
     # data_path = pathlib.Path(__file__).parent / "data/exemplo_livro.txt"
     trelica = Truss_2D(data_path)
-    print(trelica.solve_node_displacements())
+    trelica.show_results(save_file=False)
+    print(trelica.support_reactions)
