@@ -18,6 +18,7 @@ S = matriz de rigidez global da estrutura
 d = deslocamentos globais nodais
 """
 
+# Importação das bibliotecas utilizadas
 import pathlib
 import numpy as np
 
@@ -196,31 +197,31 @@ class Truss_2D:
         # Percorrendo todas as barras da estrutura
         for member in matrix_members:
             # Informações das barras
-            # beg_node = nó inicial da barra
-            # end_node = nó final da barra
-            beg_node = member[0]
-            end_node = member[1]
+            # node_i = nó inicial da barra
+            # node_f = nó final da barra
+            node_i = member[0]
+            node_f = member[1]
             material_type = member[2]
             cross_section_type = member[3]
 
             # Dados obtidos após a leitura da matriz de membros
             E = self.matrix_E[material_type]
             A = self.matrix_areas[cross_section_type]
-            x_beg = self.matrix_node_coords[beg_node, 0]
-            y_beg = self.matrix_node_coords[beg_node, 1]
-            x_end = self.matrix_node_coords[end_node, 0]
-            y_end = self.matrix_node_coords[end_node, 1]
+            x_i = self.matrix_node_coords[node_i, 0]
+            y_i = self.matrix_node_coords[node_i, 1]
+            x_f = self.matrix_node_coords[node_f, 0]
+            y_f = self.matrix_node_coords[node_f, 1]
 
             # Cálculo do comprimento da barra
-            L = np.sqrt((x_end-x_beg)**2 + (y_end-y_beg)**2)
+            L = np.sqrt((x_f-x_i)**2 + (y_f-y_i)**2)
             # cs = cos e sn = sen
-            cs = (x_end-x_beg) / L
-            sn = (y_end-y_beg) / L
+            cs = (x_f-x_i) / L
+            sn = (y_f-y_i) / L
 
             # Montagem da matriz de rigidez do elemento no SCG (triplo produto matricial)
             self.assembly_K(E, A, L, cs, sn, K)
             # Montagem da matriz de rigidez da estrutura excluindo as coordenadas restringidas
-            self.assembly_S(beg_node, end_node, K, S)
+            self.assembly_S(node_i, node_f, K, S)
 
         # Atribuição da matriz de rigidez da estrutura como atributo do objeto
         self.structure_stiffness_matrix = S
@@ -261,15 +262,15 @@ class Truss_2D:
         K[2, 3] = z3
         K[3, 3] = z2
 
-    def assembly_S(self, beg_node, end_node, K, S):
+    def assembly_S(self, node_i, node_f, K, S):
         """
         Preenche a matriz de rigidez da ESTRUTURA excluindo as linhas e colunas
         associadas a coordenadas restringidas pelos apoios.
 
         Parâmetros:
 
-            [beg_node]: Nó inicial do elemento
-            [end_node]: Nó final do elemento
+            [node_i]: Nó inicial do elemento
+            [node_f]: Nó final do elemento
             [K]: Matriz de rigidez do elemento no SCG
             [S]: Matriz de rigidez da estrutura a ser preenchida
         """
@@ -282,18 +283,18 @@ class Truss_2D:
         for row_K in range(4):
             # Verifica se a linha está associada ao nó inicial ou final
             if row_K < 2:
-                row_code_number_1 = 2 * beg_node + row_K
+                row_code_number_1 = 2 * node_i + row_K
             else:
-                row_code_number_1 = 2 * end_node + (row_K - 2)
+                row_code_number_1 = 2 * node_f + (row_K - 2)
             row_S = coord_numbers[row_code_number_1]
             # Verifica se a linha está associada a uma coordenada restringida
             if row_S < num_dof:
                 # Percorre as colunas da matriz de rigidez do elemento
                 for column_K in range(4):
                     if column_K < 2:
-                        row_code_number_2 = 2 * beg_node + column_K
+                        row_code_number_2 = 2 * node_i + column_K
                     else:
-                        row_code_number_2 = 2 * end_node + (column_K - 2)
+                        row_code_number_2 = 2 * node_f + (column_K - 2)
                     column_S = coord_numbers[row_code_number_2]
                     # Verifica se a coluna está associada a uma coordenada restringida
                     if column_S < num_dof:
@@ -343,26 +344,26 @@ class Truss_2D:
         # Para cada elemento
         for member in matrix_members:
             # Informações das barras
-            beg_node = member[0]
-            end_node = member[1]
+            node_i = member[0]
+            node_f = member[1]
             material_type = member[2]
             cross_section_type = member[3]
             E = self.matrix_E[material_type]
             A = self.matrix_areas[cross_section_type]
-            x_beg = self.matrix_node_coords[beg_node, 0]
-            y_beg = self.matrix_node_coords[beg_node, 1]
-            x_end = self.matrix_node_coords[end_node, 0]
-            y_end = self.matrix_node_coords[end_node, 1]
-            L = np.sqrt((x_end-x_beg)**2 + (y_end-y_beg)**2)
+            x_i = self.matrix_node_coords[node_i, 0]
+            y_i = self.matrix_node_coords[node_i, 1]
+            x_f = self.matrix_node_coords[node_f, 0]
+            y_f = self.matrix_node_coords[node_f, 1]
+            L = np.sqrt((x_f-x_i)**2 + (y_f-y_i)**2)
             # cs = cos e sn = sen
-            cs = (x_end-x_beg) / L
-            sn = (y_end-y_beg) / L
+            cs = (x_f-x_i) / L
+            sn = (y_f-y_i) / L
 
             # Matriz de transformação de rotação
             T = self.assembly_T(cs, sn)
 
             # Matriz de deslocamentos nodais do elemento no SCG
-            v = self.assembly_v(beg_node, end_node)
+            v = self.assembly_v(node_i, node_f)
             # Matriz de deslocamentos nodais do elemento no SCL
             u = np.dot(T, v)
 
@@ -377,7 +378,7 @@ class Truss_2D:
             # Vetor de forças de extremidade do elemento no SCG
             F = np.dot(T.T, Q)
             # Preenchimento das reações de apoio
-            self.assembly_reaction_vector(beg_node, end_node, F, reaction_vector)
+            self.assembly_reaction_vector(node_i, node_f, F, reaction_vector)
 
         self.support_reactions = reaction_vector
 
@@ -400,14 +401,14 @@ class Truss_2D:
         T[3, 3] = cs
         return T
 
-    def assembly_v(self, beg_node, end_node):
+    def assembly_v(self, node_i, node_f):
         """
         Preenche o vetor de deslocamentos nodais no SCL
 
         Parâmetros:
 
-            [beg_node]: Nó inicial do elemento
-            [end_node]: Nó final do elemento
+            [node_i]: Nó inicial do elemento
+            [node_f]: Nó final do elemento
         """
         # Valores auxiliares
         node_displacements = self.solve_node_displacements()
@@ -418,13 +419,13 @@ class Truss_2D:
 
         # Percorre as coordenadas do nó inicial e verifica se o deslocamento é livre
         for i in range(2):
-            coord_number = coord_numbers[2*beg_node + i]
+            coord_number = coord_numbers[2*node_i + i]
             if coord_number < self.num_dof:
                 v[i] = node_displacements[coord_number]
 
         # Percorre as coordenadas do nó final e verifica se o deslocamento é livre
         for j in range(2, 4):
-            coord_number = coord_numbers[2*end_node + (j-2)]
+            coord_number = coord_numbers[2*node_f + (j-2)]
             if coord_number < self.num_dof:
                 v[j] = node_displacements[coord_number]
 
@@ -448,14 +449,14 @@ class Truss_2D:
         k[2, 2] = axial_stiffness
         return k
 
-    def assembly_reaction_vector(self, beg_node, end_node, F, reaction_vector):
+    def assembly_reaction_vector(self, node_i, node_f, F, reaction_vector):
         """
         Preenche o vetor de reações de apoio.
 
         Parâmetros:
 
-            [beg_node]: Nó inicial do elemento
-            [end_node]: Nó final do elemento
+            [node_i]: Nó inicial do elemento
+            [node_f]: Nó final do elemento
             [F]: Vetor de forças nas extremidades do elemento no SCG
             [reaction_vector]: Vetor de reações de apoio a ser preenchido
         """
@@ -465,13 +466,13 @@ class Truss_2D:
 
         # Percorre as coordenadas do nó inicial e verifica se o deslocamento é livre
         for i in range(2):
-            coord_number = coord_numbers[2*beg_node + i]
+            coord_number = coord_numbers[2*node_i + i]
             if coord_number >= self.num_dof:
                 reaction_vector[coord_number - self.num_dof] += F[i]
 
         # Percorre as coordenadas do nó final e verifica se o deslocamento é livre
         for j in range(2, 4):
-            coord_number = coord_numbers[2*end_node + (j-2)]
+            coord_number = coord_numbers[2*node_f + (j-2)]
             if coord_number >= self.num_dof:
                 reaction_vector[coord_number - self.num_dof] += F[j]
 
@@ -522,14 +523,14 @@ class Truss_2D:
 
         for i, member in enumerate(self.matrix_members):
             num_member = f"{i + 1}".center(8)
-            beg_node = f"{member[0] + 1}".center(12)
-            end_node = f"{member[1] + 1}".center(10)
+            node_i = f"{member[0] + 1}".center(12)
+            node_f = f"{member[1] + 1}".center(10)
             material_type = member[2]
             cross_section_type = member[3]
             E = f"{self.matrix_E[material_type]:5.4E}".center(10)
             A = f"{self.matrix_areas[cross_section_type]:5.4E}".center(10)
             output_msg += ' | '.join([num_member,
-                                     beg_node, end_node, E, A]) + '\n'
+                                     node_i, node_f, E, A]) + '\n'
 
         output_msg += "".center(75, '-') + '\n'
 
@@ -639,6 +640,8 @@ class Truss_2D:
 
 
 if __name__ == "__main__":
+    # Caminho para o arquivo de entrada de dados
     data_path = pathlib.Path(__file__).parent / "data/truss2d_input_file.txt"
+    # Criando instância de um objeto
     trelica = Truss_2D(data_path)
     trelica.show_results(save_file=True)
