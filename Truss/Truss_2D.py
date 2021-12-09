@@ -476,18 +476,18 @@ class Truss_2D:
             if coord_number >= self.num_dof:
                 reaction_vector[coord_number - self.num_dof] += F[j]
 
-    def show_results(self, save_file=False, output_file="results.txt"):
+    def show_results(self, save_file=False):
         """
         Exibe e salva os resultados da análise.
 
         Parâmetros:
 
-            [save_file]: Salva os resultados em um arquivo de saída
-            [output_file]: Nome do arquivo de saída
+            [save_file]: Salva os resultados em um arquivo de saída ou não
         """
 
         # Nome do caso analisado
         case = self.file_name.with_suffix("").name
+        output_file = f"Resultados - {case}.txt"
 
         output_msg = "".center(75, '#') + '\n'
         output_msg += " INÍCIO DA ANÁLISE ".center(75, '#') + '\n'
@@ -595,9 +595,10 @@ class Truss_2D:
         for i in range(self.num_nodes):
             for j in range(2):
                 coord_number_row = 2*i + j
-                coord_number = self.structure_coord_numbers[coord_number_row] 
+                coord_number = self.structure_coord_numbers[coord_number_row]
                 if coord_number < self.num_dof:
-                    node_displacements_matrix[i, j+1] = node_displacements.pop(0)
+                    node_displacements_matrix[i, j +
+                                              1] = node_displacements.pop(0)
 
         output_msg += "".center(75, '-') + '\n'
 
@@ -608,28 +609,30 @@ class Truss_2D:
             num_node = f"{int(node[0] + 1)}".center(4)
             x_direction = f"{node[1]:5.4E}".center(18)
             y_direction = f"{node[2]:5.4E}".center(18)
-            output_msg += ' | '.join([num_node, x_direction, y_direction]) + '\n'
+            output_msg += ' | '.join([num_node,
+                                     x_direction, y_direction]) + '\n'
 
         output_msg += "".center(75, '-') + '\n'
 
         # Esforços normais nas barras
         output_msg += " Esforço normal ".center(75, '-') + '\n'
-        output_msg += f"{'Barra'.center(8)} | {'Esforço'.center(9)}\n"
+        output_msg += f"{'Barra'.center(8)} | {'Esforço normal'.center(20)}\n"
 
         for member in range(self.num_members):
             num_member = f"{member + 1}".center(8)
             if self.member_forces[member, 0] > 0:
-                axial_force = f"{abs(self.member_forces[member, 0]):5.4E} (Compressão)".center(14)
+                axial_force = f"{abs(self.member_forces[member, 0]):5.4E} (Compressão)".center(
+                    20)
             else:
-                axial_force = f"{abs(self.member_forces[member, 0]):5.4E} (Tração)".center(14)
+                axial_force = f"{abs(self.member_forces[member, 0]):5.4E} (Tração)".center(
+                    20)
             output_msg += ' | '.join([num_member, axial_force]) + '\n'
 
-        
         output_msg += "".center(75, '-') + '\n'
         output_msg += "".center(75, '#') + '\n'
         output_msg += " FIM DA ANÁLISE ".center(75, '#') + '\n'
         output_msg += "".center(75, '#')
-        
+
         # Salvamento dos resultados em um arquivo txt se save_file=True
         if save_file:
             with open(output_file, "w", encoding="utf-8") as out_file:
@@ -640,8 +643,12 @@ class Truss_2D:
 
 
 if __name__ == "__main__":
-    # Caminho para o arquivo de entrada de dados
-    data_path = pathlib.Path(__file__).parent / "data/truss2d_input_file.txt"
-    # Criando instância de um objeto
-    trelica = Truss_2D(data_path)
-    trelica.show_results(save_file=True)
+    # Caminhos para os arquivos de entrada de dados
+    data_path = pathlib.Path(__file__).parent / "data/Exemplo Livro.txt"
+    data_path_2 = pathlib.Path(__file__).parent / \
+        "data/Exemplo Lista Teoria 2.txt"
+    # Criação da instância de um objeto e cálculo
+    trelica_1 = Truss_2D(data_path)
+    trelica_1.show_results(save_file=True)
+    trelica_2 = Truss_2D(data_path_2)
+    trelica_2.show_results(save_file=True)
