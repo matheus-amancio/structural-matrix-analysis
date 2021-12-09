@@ -429,16 +429,17 @@ class Truss_2D:
                     if matrix_supports[support, i+1-2]:
                         reaction_vector[coord_number] += F[i]
 
-    def show_results(self, save_file=False, output_file="results.txt"):
+    def show_results(self, save_file=False):
         """
         Exibe e salva os resultados da análise.
+
         Parâmetros:
-            [save_file]: Salva os resultados em um arquivo de saída
-            [output_file]: Nome do arquivo de saída
+            [save_file]: Salva os resultados em um arquivo de saída ou não
         """
 
         # Nome do caso analisado
         case = self.file_name.with_suffix("").name
+        output_file = f"Resultados - {case}.txt"
 
         output_msg = "".center(75, '#') + '\n'
         output_msg += " INÍCIO DA ANÁLISE ".center(75, '#') + '\n'
@@ -592,8 +593,11 @@ class Truss_2D:
 
 
 if __name__ == "__main__":
-    # Caminho para o arquivo de entrada de dados
-    data_path = pathlib.Path(__file__).parent / "data/truss2d_input_file.txt"
-    # Criação da instância de um objeto
-    trelica = Truss_2D(data_path)
-    trelica.show_results(save_file=True)
+    # Caminhos para os arquivos de entrada de dados
+    data_path = pathlib.Path(__file__).parent / "data/Exemplo Livro.txt"
+    data_path_2 = pathlib.Path(__file__).parent / "data/Exemplo Lista Teoria 2.txt"
+    # Criação da instância de um objeto e cálculo
+    trelica_1 = Truss_2D(data_path)
+    trelica_1.show_results(save_file=True)
+    trelica_2 = Truss_2D(data_path_2)
+    trelica_2.show_results(save_file=True)
