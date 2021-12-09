@@ -429,17 +429,20 @@ class Truss_2D:
                     if matrix_supports[support, i+1-2]:
                         reaction_vector[coord_number] += F[i]
 
-    def show_results(self, save_file=False):
+    def show_results(self, save_file=False, output_file=""):
         """
         Exibe e salva os resultados da análise.
 
         Parâmetros:
+
             [save_file]: Salva os resultados em um arquivo de saída ou não
+            [output_file]: Nome do arquivo de saída de resultados
         """
 
         # Nome do caso analisado
         case = self.file_name.with_suffix("").name
-        output_file = f"Resultados - {case}.txt"
+        if output_file == "":
+            output_file = f"Resultados - {case}.txt"
 
         output_msg = "".center(75, '#') + '\n'
         output_msg += " INÍCIO DA ANÁLISE ".center(75, '#') + '\n'
