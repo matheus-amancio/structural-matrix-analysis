@@ -21,6 +21,7 @@ d = deslocamentos globais nodais
 # Importação das bibliotecas utilizadas
 import pathlib
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class Truss_2D:
@@ -131,6 +132,21 @@ class Truss_2D:
 
         # Cálculo do número de graus de liberdade
         self.num_dof = 2 * self.num_nodes - self.num_restrained_coord
+
+    def show_undeformed_shape(self):
+        """Exibe a configuração indeformada da treliça."""
+        coords = self.matrix_node_coords
+        members = self.matrix_members[:,:2]
+        plt.figure(figsize=(10,4))
+        for node in range(self.num_nodes):
+            plt.plot(coords[node,0], coords[node,1], "ko")
+        for member in range(self.num_members):
+            p1, p2 = members[member, 0], members[member, 1]
+            x1, y1 = coords[p1, 0], coords[p1, 1]
+            x2, y2 = coords[p2, 0], coords[p2, 1]
+            plt.plot([x1,x2],[y1,y2],'k-')
+
+        plt.show()    
 
     def get_structure_coord_numbers(self):
         """
@@ -650,7 +666,9 @@ if __name__ == "__main__":
     data_path_2 = pathlib.Path(__file__).parent / \
         "data/Exemplo Lista Teoria 2.txt"
     # Criação da instância de um objeto e cálculo
-    trelica_1 = Truss_2D(data_path)
-    trelica_1.show_results(save_file=True)
+    # trelica_1 = Truss_2D(data_path)
+    # trelica_1.show_undeformed_shape()
+    # trelica_1.show_results(save_file=True)
     trelica_2 = Truss_2D(data_path_2)
-    trelica_2.show_results(save_file=True)
+    trelica_2.show_undeformed_shape()
+    # trelica_2.show_results(save_file=True)
