@@ -491,6 +491,35 @@ class Truss_2D:
             coord_number = coord_numbers[2*node_f + (j-2)]
             if coord_number >= self.num_dof:
                 reaction_vector[coord_number - self.num_dof] += F[j]
+    
+    def show_deformed_shape(self, scale_factor=50):
+        """Plota a configuração deformada da treliça."""
+        coords = self.matrix_node_coords
+        members = self.matrix_members[:,:2]
+        node_displacements = list(np.copy(self.solve_node_displacements()))
+        coords_deformed = np.copy(coords)
+
+        for i in range(self.num_nodes):
+            for j in range(2):
+                coord_number_row = 2*i + j
+                coord_number = self.structure_coord_numbers[coord_number_row]
+                if coord_number < self.num_dof:
+                    coords_deformed[i, j] += node_displacements.pop(0) * scale_factor
+        
+        plt.figure(figsize=(10,4))
+        for node in range(self.num_nodes):
+            plt.plot(coords[node,0], coords[node,1], "bo")
+            plt.plot(coords_deformed[node,0], coords_deformed[node,1], "ro")
+        for member in range(self.num_members):
+            p1, p2 = members[member, 0], members[member, 1]
+            x1, y1 = coords[p1, 0], coords[p1, 1]
+            x2, y2 = coords[p2, 0], coords[p2, 1]
+            plt.plot([x1,x2],[y1,y2],'b-')
+            x1_d, y1_d = coords_deformed[p1, 0], coords_deformed[p1, 1]
+            x2_d, y2_d = coords_deformed[p2, 0], coords_deformed[p2, 1]
+            plt.plot([x1_d,x2_d],[y1_d,y2_d],'r--')
+        
+        plt.show()
 
     def show_results(self, save_file=False, output_file=""):
         """
@@ -666,9 +695,10 @@ if __name__ == "__main__":
     data_path_2 = pathlib.Path(__file__).parent / \
         "data/Exemplo Lista Teoria 2.txt"
     # Criação da instância de um objeto e cálculo
-    # trelica_1 = Truss_2D(data_path)
+    trelica_1 = Truss_2D(data_path)
     # trelica_1.show_undeformed_shape()
+    trelica_1.show_deformed_shape()
     # trelica_1.show_results(save_file=True)
-    trelica_2 = Truss_2D(data_path_2)
-    trelica_2.show_undeformed_shape()
+    # trelica_2 = Truss_2D(data_path_2)
+    # trelica_2.show_undeformed_shape()
     # trelica_2.show_results(save_file=True)
