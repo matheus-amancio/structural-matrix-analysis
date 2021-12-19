@@ -21,6 +21,7 @@ d = deslocamentos globais nodais
 # Importação das bibliotecas utilizadas
 import pathlib
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class Truss_2D:
@@ -429,6 +430,53 @@ class Truss_2D:
                     if matrix_supports[support, i+1-2]:
                         reaction_vector[coord_number] += F[i]
 
+    def show_deformed_shape(self, scale_factor=50):
+        coords = self.matrix_node_coords
+        members = self.matrix_members[:,:2]
+        node_displacements = np.copy(self.solve_node_displacements())
+
+        # Rearranjo dos deslocamentos nodais para somar com a matriz de coordenadas
+        node_displacements_matrix = np.reshape(node_displacements, (self.num_nodes, 2))
+
+        # Cálculo das coordenadas da configuração deformada
+        coords_deformed = np.copy(coords) + node_displacements_matrix*scale_factor
+
+        plt.figure(figsize=(10,4))
+
+        # Valor auxiliar para percorrer as linhas da matriz de apoios
+        aux = -1
+
+        # Plota os nós
+        for node in range(self.num_nodes):
+            # Verifica se há apoio no nó
+            if node in self.matrix_supports[:, 0]:
+                aux += 1
+                # Verificação de apoio do segundo gênero
+                if self.matrix_supports[aux, 1] == 1 and self.matrix_supports[aux, 2] == 1:
+                    plt.plot(coords[node,0], coords[node,1], "bs")
+                    plt.plot(coords_deformed[node,0], coords_deformed[node,1], "rs")
+                # Verificação de apoio do primeiro gênero
+                elif self.matrix_supports[aux, 1] == 1 or self.matrix_supports[aux, 2] == 1:
+                    plt.plot(coords[node,0], coords[node,1], "b^")
+                    plt.plot(coords_deformed[node,0], coords_deformed[node,1], "r^")
+            else:
+                plt.plot(coords[node,0], coords[node,1], "bo")
+                plt.plot(coords_deformed[node,0], coords_deformed[node,1], "ro")
+
+        # Plota as barras
+        for member in range(self.num_members):
+            p1, p2 = members[member, 0], members[member, 1]
+            x1, y1 = coords[p1, 0], coords[p1, 1]
+            x2, y2 = coords[p2, 0], coords[p2, 1]
+            plt.plot([x1,x2],[y1,y2],'b-')
+            x1_d, y1_d = coords_deformed[p1, 0], coords_deformed[p1, 1]
+            x2_d, y2_d = coords_deformed[p2, 0], coords_deformed[p2, 1]
+            plt.plot([x1_d,x2_d],[y1_d,y2_d],'r--')
+
+        plt.legend(["Configuração indeformada", "Configuração deformada"], loc="best")
+        
+        plt.show()
+
     def show_results(self, save_file=False, output_file=""):
         """
         Exibe e salva os resultados da análise.
@@ -601,6 +649,8 @@ if __name__ == "__main__":
     data_path_2 = pathlib.Path(__file__).parent / "data/Exemplo Lista Teoria 2.txt"
     # Criação da instância de um objeto e cálculo
     trelica_1 = Truss_2D(data_path)
-    trelica_1.show_results(save_file=True)
+    trelica_1.show_deformed_shape()
+    # trelica_1.show_results(save_file=True)
     trelica_2 = Truss_2D(data_path_2)
-    trelica_2.show_results(save_file=True)
+    trelica_2.show_deformed_shape()
+    # trelica_2.show_results(save_file=True)
