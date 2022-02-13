@@ -35,6 +35,7 @@ class Member:
         self.cs = (self.x2 - self.x1) / self.L
         self.sn = (self.y2 - self.y1) / self.L
         self.hasMemberLoad = False
+        self.fixed_end_forces = np.zeros([6])
         self.calculate_k()
         self.calculate_T()
         self.calculate_K()
@@ -109,7 +110,6 @@ class Member:
         self.K = K
 
     def calculate_fixed_end_forces(self):
-        self.fixed_end_forces = np.zeros([6])
         FAb = FSb = FMb = FAe = FSe = FMe = 0
         L, cs, sn = (self.L, self.cs, self.sn)
 
@@ -386,11 +386,36 @@ class Frame_2D:
                         aux_P[i] = 0
                         aux_Pf[i] = 0
         self.global_displacements = np.linalg.solve(aux_S, aux_P - aux_Pf)
-        print(self.global_displacements)
+    
+    def calculate_member_displacements(self):
+        self.v = np.zeros([self.model.num_members, 6])
+        self.u = np.zeros([self.model.num_members, 6])
+
+        self.solve_global_displacements()
+
+        for member in self.model.members:
+            for i, coord in zip(range(3), member.first_node.coord_numbers):
+                self.v[member.id, i] = self.global_displacements[coord]
+            for i, coord in zip(range(3, 6), member.second_node.coord_numbers):
+                self.v[member.id, i] = self.global_displacements[coord]
+            self.u[member.id] = np.dot(member.T, self.v[member.id])
+    
+    def calculate_member_forces(self):
+        self.Q = np.zeros([self.model.num_members, 6])
+        self.F = np.zeros([self.model.num_members, 6])
+
+        self.calculate_member_displacements()
+
+        for member in self.model.members:
+            self.Q[member.id] = np.dot(member.k, self.u[member.id])
+            print(member.fixed_end_forces) 
+
+        # print(self.Q)
+
 
 
 if __name__ == "__main__":
     portico_1 = Frame_2D(
         "D:\\repositorios\\structural-matrix-analysis\\Frame\data\Exemplo 1 - Pórtico Livro.txt"
     )
-    portico_1.solve_global_displacements()
+    portico_1.calculate_member_forces()
