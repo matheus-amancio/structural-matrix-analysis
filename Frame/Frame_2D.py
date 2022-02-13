@@ -1,26 +1,59 @@
 import numpy as np
 
 
+class Material:
+    def __init__(self, id, E):
+        self.id = id
+        self.E = E
+
+
+class CrossSection:
+    def __init__(self, id, A, I):
+        self.id = id
+        self.A = A
+        self.I = I
+
+
+class NodeLoad:
+    def __init__(self, id, Fx, Fy, Mz):
+        self.id = id
+        self.Fx = Fx
+        self.Fy = Fy
+        self.Mz = Mz
+        self.vector = np.array([Fx, Fy, Mz])
+
+
+class MemberLoad:
+    def __init__(self, id, load_type, *load_data):
+        self.id = id
+        self.load_type = load_type
+        if self.load_type in ("UNIFORM", "UNIFORM-H"):
+            self.w1 = self.w2 = load_data[0]
+        elif self.load_type in ("TRIANGULAR", "TRAPEZOIDAL"):
+            self.w1 = load_data[0]
+            self.w2 = load_data[1]
+
+
 class Node:
     def __init__(self, id, x, y):
         self.id = id
         self.x = x
         self.y = y
         self.coord_numbers = [self.id * 3, self.id * 3 + 1, self.id * 3 + 2]
-        self.hasSupport = False
-        self.hasNodeLoad = False
+        self.has_support = False
+        self.has_applied_node_load = False
 
     def setSupport(self, d_x_restrained, d_y_restrained, r_z_restrained):
-        self.hasSupport = True
+        self.has_support = True
         self.restrained_coords = [d_x_restrained, d_y_restrained, r_z_restrained]
 
-    def setLoad(self, node_load):
-        self.hasNodeLoad = True
-        self.node_load = node_load
+    def setLoad(self, applied_node_load: NodeLoad):
+        self.has_applied_node_load = True
+        self.applied_node_load = applied_node_load
 
 
 class Member:
-    def __init__(self, id, first_node, second_node, E, A, I):
+    def __init__(self, id, first_node: Node, second_node: Node, E, A, I):
         self.id = id
         self.first_node = first_node
         self.second_node = second_node
@@ -34,16 +67,18 @@ class Member:
         self.L = np.sqrt((self.x1 - self.x2) ** 2 + (self.y1 - self.y2) ** 2)
         self.cs = (self.x2 - self.x1) / self.L
         self.sn = (self.y2 - self.y1) / self.L
-        self.hasMemberLoad = False
-        self.fixed_end_forces = np.zeros([6])
+        self.has_applied_member_load = False
+        self.fixed_end_forces_local = np.zeros([6])
+        self.fixed_end_forces_global = np.zeros([6])
+        self.applied_member_loads = []
         self.calculate_k()
         self.calculate_T()
         self.calculate_K()
 
-    def setMemberLoad(self, member_load):
-        self.hasMemberLoad = True
-        self.member_load = member_load
-        self.calculate_fixed_end_forces()
+    def setAppliedMemberLoad(self, member_load: MemberLoad):
+        self.has_applied_member_load = True
+        self.applied_member_loads.append(member_load)
+        self.calculate_fixed_end_forces(member_load.id)
 
     def calculate_k(self):
         E, A, I, L = self.E, self.A, self.I, self.L
@@ -109,56 +144,39 @@ class Member:
         K = np.dot(np.dot(T.T, k), T)
         self.K = K
 
-    def calculate_fixed_end_forces(self):
+    def calculate_fixed_end_forces(self, load_id):
+        load = self.applied_member_loads[load_id]
         FAb = FSb = FMb = FAe = FSe = FMe = 0
         L, cs, sn = (self.L, self.cs, self.sn)
 
-        if self.hasMemberLoad:
-            w1, w2 = self.member_load.w1, self.member_load.w2
-            if self.member_load.load_type == "UNIFORM-H":
+        if self.has_applied_member_load:
+            w1, w2 = load.w1, load.w2
+            if load.load_type == "UNIFORM-H":
                 FAb = w1 * L / 2
                 FAe = w1 * L / 2
             else:
                 FSb = FSe = (7 * w1 * L + 3 * w2 * L) / 20
                 FMb = w1 * L ** 2 / 20 + w2 * L ** 2 / 30
                 FMe = -w1 * L ** 2 / 30 - w2 * L ** 2 / 20
-            self.fixed_end_forces[0] = FAb * cs - FSb * sn
-            self.fixed_end_forces[1] = FAb * sn + FSb * cs
-            self.fixed_end_forces[2] = FMb
-            self.fixed_end_forces[3] = FAe * cs - FSe * sn
-            self.fixed_end_forces[4] = FAe * sn + FSe * cs
-            self.fixed_end_forces[5] = FMe
-            self.fixed_end_forces *= -1
 
+            self.fixed_end_forces_local[0] += -FAb
+            self.fixed_end_forces_local[1] += -FSb
+            self.fixed_end_forces_local[2] += -FMb
+            self.fixed_end_forces_local[3] += -FAe
+            self.fixed_end_forces_local[4] += -FSe
+            self.fixed_end_forces_local[5] += -FMe
 
-class Material:
-    def __init__(self, id, E):
-        self.id = id
-        self.E = E
+            self.fixed_end_forces_global += np.dot(
+                self.T.T, self.fixed_end_forces_local
+            )
 
+    def setMemberDisplacements(self, u, v):
+        self.u = u
+        self.v = v
 
-class CrossSection:
-    def __init__(self, id, A, I):
-        self.id = id
-        self.A = A
-        self.I = I
-
-
-class NodeLoad:
-    def __init__(self, Fx, Fy, Mz):
-        self.Fx = Fx
-        self.Fy = Fy
-        self.Mz = Mz
-
-
-class MemberLoad:
-    def __init__(self, load_type, *load_data):
-        self.load_type = load_type
-        if self.load_type in ("UNIFORM", "UNIFORM-H"):
-            self.w1 = self.w2 = load_data[0]
-        elif self.load_type in ("TRIANGULAR", "TRAPEZOIDAL"):
-            self.w1 = load_data[0]
-            self.w2 = load_data[1]
+    def setMemberEndForces(self, Q, F):
+        self.Q = Q
+        self.F = F
 
 
 class Model:
@@ -277,7 +295,7 @@ class Model:
 
         for i, load in enumerate(node_load_data):
             node_id, Fx, Fy, Mz = load.split()
-            node_load = NodeLoad(float(Fx), float(Fy), float(Mz))
+            node_load = NodeLoad(i, float(Fx), float(Fy), float(Mz))
             for node in self.nodes:
                 if node.id == (int(node_id) - 1):
                     node.setLoad(node_load)
@@ -287,24 +305,24 @@ class Model:
         num_member_loads_index = member_load_header_index + 1
         first_member_load_index = num_member_loads_index + 1
 
-        num_member_loads = int(raw_data[num_member_loads_index])
+        self.num_member_loads = int(raw_data[num_member_loads_index])
 
         member_load_data = raw_data[
-            first_member_load_index : first_member_load_index + num_member_loads
+            first_member_load_index : first_member_load_index + self.num_member_loads
         ]
 
         for i, load in enumerate(member_load_data):
             member_id, load_type, *load_data = load.split()
             if load_type in ("UNIFORM", "UNIFORM-H"):
                 w = float(load_data[0])
-                member_load = MemberLoad(load_type, w)
+                member_load = MemberLoad(i, load_type, w)
             elif load_type in ("TRIANGULAR", "TRAPEZOIDAL"):
                 w1 = float(load_data[0])
                 w2 = float(load_data[1])
-                member_load = MemberLoad(load_type, w1, w2)
+                member_load = MemberLoad(i, load_type, w1, w2)
             for member in self.members:
                 if member.id == (int(member_id) - 1):
-                    member.setMemberLoad(member_load)
+                    member.setAppliedMemberLoad(member_load)
 
     def showAllNodeInformations(self):
         for node in self.nodes:
@@ -347,8 +365,8 @@ class Frame_2D:
         self.global_node_load_vector = np.zeros([3 * self.model.num_nodes])
 
         for node in self.model.nodes:
-            if node.hasNodeLoad:
-                Fx, Fy, Mz = vars(node.node_load).values()
+            if node.has_applied_node_load:
+                Fx, Fy, Mz = node.applied_node_load.vector
                 for coord_number, force in zip(node.coord_numbers, (Fx, Fy, Mz)):
                     self.global_node_load_vector[coord_number] += force
 
@@ -356,7 +374,7 @@ class Frame_2D:
         self.global_equivalent_node_load_vector = np.zeros(3 * self.model.num_nodes)
 
         for member in self.model.members:
-            if member.hasMemberLoad:
+            if member.has_applied_member_load:
                 for i in range(6):
                     if i < 3:
                         j = member.first_node.coord_numbers[i]
@@ -364,7 +382,7 @@ class Frame_2D:
                         j = member.second_node.coord_numbers[i - 3]
                     self.global_equivalent_node_load_vector[
                         j
-                    ] += member.fixed_end_forces[i]
+                    ] += member.fixed_end_forces_global[i]
 
     def solve_global_displacements(self):
         aux_S = np.copy(self.S)
@@ -372,7 +390,7 @@ class Frame_2D:
         aux_Pf = np.copy(self.global_equivalent_node_load_vector)
 
         for node in self.model.nodes:
-            if node.hasSupport:
+            if node.has_support:
                 for coord_number, restrained_coord in zip(
                     node.coord_numbers, node.restrained_coords
                 ):
@@ -386,7 +404,7 @@ class Frame_2D:
                         aux_P[i] = 0
                         aux_Pf[i] = 0
         self.global_displacements = np.linalg.solve(aux_S, aux_P - aux_Pf)
-    
+
     def calculate_member_displacements(self):
         self.v = np.zeros([self.model.num_members, 6])
         self.u = np.zeros([self.model.num_members, 6])
@@ -399,7 +417,8 @@ class Frame_2D:
             for i, coord in zip(range(3, 6), member.second_node.coord_numbers):
                 self.v[member.id, i] = self.global_displacements[coord]
             self.u[member.id] = np.dot(member.T, self.v[member.id])
-    
+            member.setMemberDisplacements(self.u[member.id], self.v[member.id])
+
     def calculate_member_forces(self):
         self.Q = np.zeros([self.model.num_members, 6])
         self.F = np.zeros([self.model.num_members, 6])
@@ -407,11 +426,11 @@ class Frame_2D:
         self.calculate_member_displacements()
 
         for member in self.model.members:
-            self.Q[member.id] = np.dot(member.k, self.u[member.id])
-            print(member.fixed_end_forces) 
-
-        # print(self.Q)
-
+            self.Q[member.id] = (
+                np.dot(member.k, self.u[member.id]) + member.fixed_end_forces_local
+            )
+            self.F[member.id] = np.dot(member.T.T, self.Q[member.id])
+            member.setMemberEndForces(self.Q[member.id], self.F[member.id])
 
 
 if __name__ == "__main__":
