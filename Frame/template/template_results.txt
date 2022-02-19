@@ -1,0 +1,25 @@
+Caso:
+
+Número de nós:
+Número de barras:
+
+Nós:
+Nº, x, y
+
+Barras:
+Nº, Primeiro nó, Segundo Nó, E, A, I,
+
+Apoios:
+Nó, Restringe translação em x, Restringe translação em y, Restringe rotação
+
+Forças nodais:
+Nó, Fx, Fy, Mz
+
+Cargas distribuídas:
+Barra, Tipo de carregamento, w1, w2
+
+Reações de apoio:
+Nó, FRx, FRy, MRz
+
+Esforços internos solicitantes:
+Barra, Nó, Esforço normal, Esforço cortante, Momento fletor
