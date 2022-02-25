@@ -24,4 +24,7 @@ Nó, FRx, FRy, MRz
 Esforços internos solicitantes:
 Barra, Nó, Esforço normal, Esforço cortante, Momento fletor
 
+Deslocamentos nodais:
+Nó, Deslocamento em x, Deslocamento em y, Rotação (rad)
+
 Fim da análise.

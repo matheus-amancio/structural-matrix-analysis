@@ -46,4 +46,11 @@ Barra, Nó, Esforço normal, Esforço cortante, Momento fletor
 3 | 3 | -9.3691E+00 | +3.0144E+00 | +1.2058E+01
 ---
 
+Deslocamentos nodais:
+Nó, Deslocamento em x, Deslocamento em y, Rotação (rad)
+1 | +0.0000E+00 | +0.0000E+00 | +0.0000E+00
+2 | +1.0478E-03 | -2.8040E-07 | -2.4791E-04
+3 | +1.0461E-03 | -4.1640E-06 | -2.3343E-05
+4 | +0.0000E+00 | +0.0000E+00 | -3.8061E-04
+
 Fim da análise.

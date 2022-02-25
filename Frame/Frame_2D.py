@@ -863,6 +863,20 @@ class Results:
             self.output.insert(row_to_write, "---")
             row_to_write += 1
 
+    def write_node_global_displacements(self):
+        """Método que escreve informações dos deslocamentos nodais no SCG."""
+        row_to_write = self.output.index("Deslocamentos nodais:") + 2
+
+        for node in self.model.nodes:
+            Dx, Dy, Rz = self.frame.global_displacements[
+                node.coord_numbers[0] : node.coord_numbers[2] + 1
+            ]
+            self.output.insert(
+                row_to_write,
+                f"{node.id + 1} | {Dx:+6.4E} | {Dy:+6.4E} | {Rz:+6.4E}",
+            )
+            row_to_write += 1
+
     def write_results(self, save_file):
         """
         Método que escreve todos os resultados.
@@ -878,6 +892,7 @@ class Results:
         self.write_applied_member_loads()
         self.write_support_reactions()
         self.write_member_end_forces()
+        self.write_node_global_displacements()
         print("\n".join(self.output))
         if save_file:
             with open(self.output_file_path, "w", encoding="utf-8") as f:
