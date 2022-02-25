@@ -804,7 +804,7 @@ class Results:
             if node.has_applied_node_load:
                 Fx, Fy, Mz = node.applied_node_load.vector
 
-                self.output.insert(row_to_write, f"{node.id + 1} | {Fx:+6.4} | {Fy:+6.4} | {Mz:+6.4}")
+                self.output.insert(row_to_write, f"{node.id + 1} | {Fx:+6.4E} | {Fy:+6.4E} | {Mz:+6.4E}")
                 row_to_write += 1
 
     def write_applied_member_loads(self):

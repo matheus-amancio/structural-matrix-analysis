@@ -26,8 +26,8 @@ Nó, Restringe translação em x, Restringe translação em y, Restringe rotaç�
 
 Forças nodais:
 Nó, Fx, Fy, Mz
-3 |  +80.0 |   +0.0 |   +0.0
-5 |  +40.0 |   +0.0 |   +0.0
+3 | +8.0000E+01 | +0.0000E+00 | +0.0000E+00
+5 | +4.0000E+01 | +0.0000E+00 | +0.0000E+00
 
 Cargas distribuídas:
 Barra, Tipo de carregamento, qx, qy
