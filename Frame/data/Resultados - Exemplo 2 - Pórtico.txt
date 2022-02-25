@@ -26,7 +26,7 @@ Nó, Fx, Fy, Mz
 
 Cargas distribuídas:
 Barra, Tipo de carregamento, qx, qy
-1 | UNIFORME | +2.0000E+00 | -2.0000E+00
+1 | UNIFORME-GLOBAL | +2.0000E+00 | -2.0000E+00
 
 Reações de apoio:
 Nó, FRx, FRy, MRz

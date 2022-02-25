@@ -1,14 +1,14 @@
 % NODES %
 4
 0 0
-0 4
-5 4
-5 0
+3 4
+8 4
+8 0
 
 % SUPPORTS %
 2
 1 1 1 1
-4 1 1 0
+4 1 1 1
 
 % MATERIALS %
 1
@@ -26,8 +26,8 @@
 
 % NODE LOADS %
 1
-2 10 0 0
+3 0 0 5
 
 % MEMBER LOADS %
 1
-2 UNIFORM-GLOBAL 0 -2
+1 UNIFORM-LOCAL 2 -2

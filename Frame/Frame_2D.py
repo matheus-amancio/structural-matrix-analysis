@@ -92,7 +92,7 @@ class MemberLoad:
         """
         self.id = id
         self.load_type = load_type
-        if self.load_type in ("UNIFORM"):
+        if "UNIFORM" in self.load_type:
             self.qx, self.qy = load_data
 
 
@@ -286,7 +286,7 @@ class Member:
 
         if self.has_applied_member_load:
             qx, qy = load.qx, load.qy
-            if load.load_type == "UNIFORM":
+            if "UNIFORM" in load.load_type:
                 FAj = -qx * L / 2
                 FSj = -qy * L / 2
                 FMj = -qy * L ** 2 / 12
@@ -527,12 +527,15 @@ class Model:
 
         for i, load in enumerate(member_load_data):
             member_id, load_type, *load_data = load.split()
-            if load_type in ("UNIFORM"):
-                qx_global, qy_global = float(load_data[0]), float(load_data[1])
-                cs = self.members[int(member_id) - 1].cs
-                sn = self.members[int(member_id) - 1].sn
-                qx_local = qx_global * cs + qy_global * sn
-                qy_local = -qx_global * sn + qy_global * cs
+            if "UNIFORM" in load_type:
+                if load_type == "UNIFORM-GLOBAL":
+                    qx_global, qy_global = float(load_data[0]), float(load_data[1])
+                    cs = self.members[int(member_id) - 1].cs
+                    sn = self.members[int(member_id) - 1].sn
+                    qx_local = qx_global * cs + qy_global * sn
+                    qy_local = -qx_global * sn + qy_global * cs
+                elif load_type == "UNIFORM-LOCAL":
+                    qx_local, qy_local = float(load_data[0]), float(load_data[1])
                 member_load = MemberLoad(i, load_type, qx_local, qy_local)
                 for member in self.members:
                     if member.id == (int(member_id) - 1):
@@ -800,15 +803,19 @@ class Results:
             if member.has_applied_member_load:
                 for load in member.applied_member_loads:
                     if "UNIFORM" in load.load_type:
-                        load_type = load.load_type.replace("UNIFORM", "UNIFORME")
-                        if load.load_type == "UNIFORM":
+                        if load.load_type == "UNIFORM-GLOBAL":
                             qx_global = load.qx * member.cs - load.qy * member.sn
                             qy_global = load.qx * member.sn + load.qy * member.cs
                             self.output.insert(
                                 row_to_write,
-                                f"{member.id + 1} | {load_type} | {qx_global:+6.4E} | {qy_global:+6.4E}",
+                                f"{member.id + 1} | UNIFORME-GLOBAL | {qx_global:+6.4E} | {qy_global:+6.4E}",
                             )
-                            row_to_write += 1
+                        elif load.load_type == "UNIFORM-LOCAL":
+                            self.output.insert(
+                                row_to_write,
+                                f"{member.id + 1} | UNIFORME-LOCAL | {load.qx:+6.4E} | {load.qy:+6.4E}",
+                            )
+                        row_to_write += 1
 
     def write_support_reactions(self):
         """Método que escreve informações das reações de apoio."""
@@ -867,12 +874,12 @@ class Results:
 
 if __name__ == "__main__":
     # Pórtico 1
-    # portico_1 = Frame_2D(
-    #     "D:\\repositorios\\structural-matrix-analysis\\Frame\\data\\Exemplo 1 - Pórtico.txt"
-    # )
-    # portico_1.solve_frame()
-    # results_1 = Results(portico_1)
-    # results_1.write_results(save_file=True)
+    portico_1 = Frame_2D(
+        "D:\\repositorios\\structural-matrix-analysis\\Frame\\data\\Exemplo 1 - Pórtico.txt"
+    )
+    portico_1.solve_frame()
+    results_1 = Results(portico_1)
+    results_1.write_results(save_file=True)
 
     # Pórtico 2
     portico_2 = Frame_2D(
@@ -881,3 +888,11 @@ if __name__ == "__main__":
     portico_2.solve_frame()
     results_2 = Results(portico_2)
     results_2.write_results(save_file=True)
+
+    # Pórtico 3
+    portico_3 = Frame_2D(
+        "D:\\repositorios\\structural-matrix-analysis\\Frame\\data\\Exemplo 3 - Pórtico.txt"
+    )
+    portico_3.solve_frame()
+    results_3 = Results(portico_3)
+    results_3.write_results(save_file=True)
