@@ -93,6 +93,7 @@ class MemberLoad:
         self.id = id
         self.load_type = load_type
         if "UNIFORM" in self.load_type:
+            # qx e qy estão no SCL
             self.qx, self.qy = load_data
 
 
@@ -185,8 +186,11 @@ class Member:
         self.cs = (self.x2 - self.x1) / self.L
         self.sn = (self.y2 - self.y1) / self.L
         self.has_applied_member_load = False
+
+        # Vetor com as reações para elemento engastado-engastado
         self.fixed_end_forces_local = np.zeros([6])
         self.fixed_end_forces_global = np.zeros([6])
+
         self.applied_member_loads = []
         self.calculate_k()
         self.calculate_T()
@@ -591,18 +595,20 @@ class Frame_2D:
 
     def assembly_S(self, member: Member):
         """
-        Método que faz o mapeamento da matriz de rigidez da barra no SCL para a
+        Método que faz o mapeamento da matriz de rigidez da barra no SCG para a
         matriz de rigidez global do pórtico.
 
         Parâmetros:
             member (Member): objeto da classe Member que representa a barra.
         """
         for row_K in range(6):
+            # Verifica se a linha está associado ao primeiro nó da barra
             if row_K < 3:
                 row_S = member.first_node.coord_numbers[row_K]
             else:
                 row_S = member.second_node.coord_numbers[row_K - 3]
             for column_K in range(6):
+                # Verifica se a linha está associado ao segundo nó da barra
                 if column_K < 3:
                     column_S = member.first_node.coord_numbers[column_K]
                 else:
@@ -633,15 +639,18 @@ class Frame_2D:
                     self.global_equivalent_node_load_vector[
                         j
                     ] += member.fixed_end_forces_global[i]
-
+        # Inversão dos valores
         self.global_equivalent_node_load_vector *= -1
 
     def calculate_global_displacements(self):
         """Método que calcula deslocamentos globais do pórtico."""
+
+        # Matrizes e vetores auxiliares
         aux_S = np.copy(self.S)
         aux_P = np.copy(self.global_node_load_vector)
         aux_Pf = np.copy(self.global_equivalent_node_load_vector)
 
+        # Implementação do método pênalti
         for node in self.model.nodes:
             if node.has_support:
                 for coord_number, restrained_coord in zip(
@@ -663,6 +672,7 @@ class Frame_2D:
         self.v = np.zeros([self.model.num_members, 6])
         self.u = np.zeros([self.model.num_members, 6])
 
+        # Caso precise rodar esse método isoladamente, descomente a linha abaixo
         # self.calculate_global_displacements()
 
         for member in self.model.members:
@@ -678,6 +688,7 @@ class Frame_2D:
         self.Q = np.zeros([self.model.num_members, 6])
         self.F = np.zeros([self.model.num_members, 6])
 
+        # Caso precise rodar esse método isoladamente, descomente a linha abaixo
         # self.calculate_member_displacements()
 
         for member in self.model.members:
@@ -691,6 +702,7 @@ class Frame_2D:
         """Método que calcula reações de apoio do pórtico."""
         self.support_reactions = np.zeros([self.model.num_nodes, 4])
 
+        # Caso precise rodar esse método isoladamente, descomente a linha abaixo
         # self.calculate_member_forces()
 
         for support in self.model.supports:
