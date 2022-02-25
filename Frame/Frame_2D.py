@@ -1,22 +1,75 @@
+"""Módulo que resolve pórtico plano."""
+
+"""
+GLOSSÁRIO
+
+SCL = Sistema de coordenadas local.
+SCG = Sistema de coordenadas global.
+
+k = matriz de rigidez da barra no SCL.
+K = matriz de rigidez da barra no SCG.
+T = matriz de rotação da barra.
+
+u = deslocamentos das extremidades das barras no SCL.
+v = deslocamentos das extremidades das barras no SCG.
+
+Q = esforços das extremidades das barras no SCL.
+F = esforços das extremidades das barras no SCG.
+
+S = matriz de rigidez global do pórtico.
+"""
+
+
+# Importação das bibliotecas necessárias
 import numpy as np
 from pathlib import Path
 
 
 class Material:
+    """Classe que define um material."""
+
     def __init__(self, id, E):
+        """
+        Método inicializador.
+
+        Parâmetros:
+            id (int): identificador.
+            E (float): módulo de elasticidade longitudinal.
+        """
         self.id = id
         self.E = E
 
 
 class CrossSection:
+    """Classe que define uma seção transversal."""
+
     def __init__(self, id, A, I):
+        """
+        Método inicializador.
+
+        Parâmetros:
+            A (float): área.
+            I (float): momento de inércia.
+        """
         self.id = id
         self.A = A
         self.I = I
 
 
 class NodeLoad:
+    """Classe que define uma carga nodal aplicada."""
+
     def __init__(self, id, node_id, Fx, Fy, Mz):
+        """
+        Método inicializador.
+
+        Parâmetros:
+            id (int): identificador.
+            node_id (int): identificador do nó de aplicação.
+            F_x (float): Força linear na direção x global (horizontal).
+            F_y (float): Força linear na direção y global (vertical).
+            F_z (float): Força momento em torno do eixo z.
+        """
         self.id = id
         self.node_id = node_id
         self.Fx = Fx
@@ -26,7 +79,17 @@ class NodeLoad:
 
 
 class MemberLoad:
+    """Classe que define uma carga distribuída."""
+
     def __init__(self, id, load_type, *load_data):
+        """
+        Método inicializador.
+
+        Parâmetros:
+            id (int): identificador.
+            load_type (str): tipo de carregamento distribuído.
+            load_data ((float)): informações sobre o carregamento (como qx e qy).
+        """
         self.id = id
         self.load_type = load_type
         if self.load_type in ("UNIFORM"):
@@ -34,14 +97,36 @@ class MemberLoad:
 
 
 class Support:
+    """Classe que define um apoio."""
+
     def __init__(self, id, node_id, d_x_restrained, d_y_restrained, r_z_restrained):
+        """
+        Método inicializador.
+
+        Parâmetros:
+            id (int): identificador.
+            node_id (int): identificador do nó que contém o apoio.
+            d_x_restrained (int): 1 se a translação em x_global é restringida, 0 se não.
+            d_y_restrained (int): 1 se a direção y_global é restringida, 0 se não.
+            r_z_restrained (int): 1 se a rotação em torno de z é restringida, 0 se não.
+        """
         self.id = id
         self.node_id = node_id
         self.restrained_coords = [d_x_restrained, d_y_restrained, r_z_restrained]
 
 
 class Node:
+    """Classe que define um nó do pórtico plano."""
+
     def __init__(self, id, x, y):
+        """
+        Método inicializador.
+
+        Parâmetros:
+            id (int): identificador.
+            x (float): coordenada x do nó.
+            y (float): coordenada y do nó.
+        """
         self.id = id
         self.x = x
         self.y = y
@@ -50,17 +135,42 @@ class Node:
         self.has_applied_node_load = False
 
     def set_support(self, support: Support):
+        """
+        Método que aplica apoio em um nó.
+
+        Parâmetros:
+            support (Support): objeto da classe Support com informações do apoio.
+        """
         self.has_support = True
         self.restrained_coords = support.restrained_coords
         self.support_reactions = np.zeros([3])
 
     def set_load(self, applied_node_load: NodeLoad):
+        """
+        Método que aplica carga em um nó.
+
+        Parâmetros:
+            applied_node_load (NodeLoad): objeto da classe NodeLoad com informações da carga.
+        """
         self.has_applied_node_load = True
         self.applied_node_load = applied_node_load
 
 
 class Member:
+    """Classe que define uma barra do pórtico."""
+
     def __init__(self, id, first_node: Node, second_node: Node, E, A, I):
+        """
+        Método inicializador.
+
+        Parâmetros:
+            id (int): identificador.
+            first_node (Node): objeto da classe Node com informações do primeiro nó da barra.
+            second_node (Node): objeto da classe Node com informações do segundo nó da barra.
+            E (float): módulo de elasticidade longitudinal.
+            A (float): área da seção transversal.
+            I (float): momento de inércia da seção transversal.
+        """
         self.id = id
         self.first_node = first_node
         self.second_node = second_node
@@ -83,11 +193,18 @@ class Member:
         self.calculate_K()
 
     def set_applied_member_load(self, member_load: MemberLoad):
+        """
+        Método que aplica carregamento distribuído em uma barra.
+
+        Parâmetros:
+            member_load (MemberLoad): objeto da classe MemberLoad com informações do carregamento.
+        """
         self.has_applied_member_load = True
         self.applied_member_loads.append(member_load)
         self.calculate_fixed_end_forces(member_load.id)
 
     def calculate_k(self):
+        """Método que calcula matriz de rigidez da barra no SCL."""
         E, A, I, L = self.E, self.A, self.I, self.L
         k = np.array(
             [
@@ -131,6 +248,7 @@ class Member:
         self.k = k
 
     def calculate_T(self):
+        """Método que calcula a matriz de rotação."""
         cs, sn = self.cs, self.sn
         T = np.array(
             [
@@ -146,25 +264,35 @@ class Member:
         self.T = T
 
     def calculate_K(self):
+        """Método que calcula matriz de rigidez da barra no SCG (triplo produto matricial)."""
         k = self.k
         T = self.T
         K = np.dot(np.dot(T.T, k), T)
         self.K = K
 
     def calculate_fixed_end_forces(self, load_id):
+        """
+        Método que calcula vetor de forças nas extremidades da barra devido aos
+        carregamentos distribuídos no SCL e SCG.
+
+        Parâmetros:
+            load_id: identificador do carregamento.
+        """
         load = self.applied_member_loads[load_id]
+        # Reações de barra formada pelos nós j e k
+        # A = axial, S = cisalhamento, M = momento
         FAj = FSj = FMj = FAk = FSk = FMk = 0
         L = self.L
 
         if self.has_applied_member_load:
             qx, qy = load.qx, load.qy
             if load.load_type == "UNIFORM":
-                FAj = +qx * L / 2
-                FSj = +qy * L / 2
-                FMj = +qy * L ** 2 / 12
-                FAk = +qx * L / 2
-                FSk = +qy * L / 2
-                FMk = -qy * L ** 2 / 12
+                FAj = -qx * L / 2
+                FSj = -qy * L / 2
+                FMj = -qy * L ** 2 / 12
+                FAk = -qx * L / 2
+                FSk = -qy * L / 2
+                FMk = +qy * L ** 2 / 12
 
             self.fixed_end_forces_local[0] += FAj
             self.fixed_end_forces_local[1] += FSj
@@ -178,10 +306,26 @@ class Member:
             )
 
     def set_member_end_displacements(self, u, v):
+        """
+        Método que armazena os deslocamentos globais das extremidades da barra
+        no SCL e SCG.
+
+        Parâmetros:
+            u (np.array): deslocamentos no SCL
+            v (np.array): deslocamentos no SCG
+        """
         self.u = u
         self.v = v
 
     def set_member_end_forces(self, Q, F):
+        """
+        Método que armazena os esforços das extremidades da barra
+        no SCL e SCG.
+
+        Parâmetros:
+            Q (np.array): esforços no SCL
+            F (np.array): esforços no SCG
+        """
         self.Q = Q
         self.F = F
 
@@ -233,16 +377,25 @@ class Diagrams:
 
 
 class Model:
+    """Classe que define um modelo de pórtico."""
+
     def __init__(self, input_file_path):
+        """
+        Método inicializador
+
+        Parâmetros:
+            input_file_path (str): caminho do arquivo de entrada.
+        """
         self.input_file_path = input_file_path
         self.set_model()
 
     def read_input_file(self):
+        """Método que lê o conteúdo do arquivo de entrada."""
         with open(self.input_file_path, "r", encoding="utf-8") as f:
             self.raw_data = f.read().split("\n")
 
     def get_nodes(self):
-        # Leitura dos dados referentes aos nós
+        """Método que faz a leitura dos dados referentes aos nós."""
         node_header_index = self.raw_data.index("% NODES %")
         num_nodes_index = node_header_index + 1
         first_node_index = num_nodes_index + 1
@@ -257,7 +410,7 @@ class Model:
             self.nodes[i] = Node(i, float(x), float(y))
 
     def get_supports(self):
-        # Leitura dos dados referentes aos apoios
+        """Método que faz a leitura dos dados referentes aos apoios."""
         support_header_index = self.raw_data.index("% SUPPORTS %")
         num_supports_index = support_header_index + 1
         first_support_index = num_supports_index + 1
@@ -277,7 +430,7 @@ class Model:
                     node.set_support(self.supports[i])
 
     def get_materials(self):
-        # Leitura dos dados referentes aos materiais
+        """Método que faz a leitura dos dados referentes aos materiais."""
         material_header_index = self.raw_data.index("% MATERIALS %")
         num_materials_index = material_header_index + 1
         first_material_index = num_materials_index + 1
@@ -293,7 +446,7 @@ class Model:
             self.materials[i] = Material(i, float(young_modulus))
 
     def get_cross_sections(self):
-        # Leitura dos dados referentes às seções transversais
+        """Método que faz a leitura dos dados referentes às seções transversais."""
         cross_section_header_index = self.raw_data.index("% CROSS-SECTIONS %")
         num_cross_sections_index = cross_section_header_index + 1
         first_cross_section_index = num_cross_sections_index + 1
@@ -313,7 +466,7 @@ class Model:
             )
 
     def get_members(self):
-        # Leitura dos dados referentes aos elementos
+        """Método que faz a leitura dos dados referentes às barras."""
         member_header_index = self.raw_data.index("% MEMBERS %")
         num_members_index = member_header_index + 1
         first_member_index = num_members_index + 1
@@ -339,7 +492,7 @@ class Model:
             )
 
     def get_applied_node_loads(self):
-        # Leitura das informações referentes às cargas nodais
+        """Método que faz a leitura das informações referentes às cargas nodais."""
         node_load_header_index = self.raw_data.index("% NODE LOADS %")
         num_node_loads_index = node_load_header_index + 1
         first_node_load_index = num_node_loads_index + 1
@@ -360,7 +513,7 @@ class Model:
                     self.node_loads.append(node_load)
 
     def get_applied_member_loads(self):
-        # Leitura das informações referentes aos carregamentos distribuídos
+        """Método que faz a leitura das informações referentes aos carregamentos distribuídos."""
         member_load_header_index = self.raw_data.index("% MEMBER LOADS %")
         num_member_loads_index = member_load_header_index + 1
         first_member_load_index = num_member_loads_index + 1
@@ -379,7 +532,7 @@ class Model:
                 cs = self.members[int(member_id) - 1].cs
                 sn = self.members[int(member_id) - 1].sn
                 qx_local = qx_global * cs + qy_global * sn
-                qy_local = qx_global * sn - qy_global * cs
+                qy_local = -qx_global * sn + qy_global * cs
                 member_load = MemberLoad(i, load_type, qx_local, qy_local)
                 for member in self.members:
                     if member.id == (int(member_id) - 1):
@@ -387,6 +540,7 @@ class Model:
                         self.member_loads.append(member_load)
 
     def set_model(self):
+        """Método que faz a leitura de todas as informações necessárias."""
         self.read_input_file()
         self.get_nodes()
         self.get_supports()
@@ -397,30 +551,49 @@ class Model:
         self.get_applied_member_loads()
 
     def show_all_node_informations(self):
+        """Método que mostra na tela todas as informações dos nós do pórtico."""
         for node in self.nodes:
             print(vars(node))
 
     def show_all_member_informations(self):
+        """Método que mostra na tela todas as informações das barras do pórtico."""
         for member in self.members:
             print(vars(member))
 
     def showModelInformations(self):
+        """Método que mostra na tela todas as informações do modelo."""
         print(vars(self))
 
 
 class Frame_2D:
+    """Classe que define e calcula um pórtico plano."""
+
     def __init__(self, input_file_path):
+        """
+        Método inicializador.
+
+        Parâmetros:
+            input_file_path (str): caminho do arquivo de entrada.
+        """
         self.model = Model(input_file_path)
         self.calculate_S()
         self.calculate_global_node_load_vector()
         self.calculate_global_equivalent_node_load_vector()
 
     def calculate_S(self):
+        """Método que calcula a matriz de rigidez do pórtico"""
         self.S = np.zeros([3 * self.model.num_nodes, 3 * self.model.num_nodes])
         for member in self.model.members:
             self.assembly_S(member)
 
     def assembly_S(self, member: Member):
+        """
+        Método que faz o mapeamento da matriz de rigidez da barra no SCL para a
+        matriz de rigidez global do pórtico.
+
+        Parâmetros:
+            member (Member): objeto da classe Member que representa a barra.
+        """
         for row_K in range(6):
             if row_K < 3:
                 row_S = member.first_node.coord_numbers[row_K]
@@ -434,6 +607,7 @@ class Frame_2D:
                 self.S[row_S, column_S] += member.K[row_K, column_K]
 
     def calculate_global_node_load_vector(self):
+        """Método que calcula o vetor de forças nodais."""
         self.global_node_load_vector = np.zeros([3 * self.model.num_nodes])
 
         for node in self.model.nodes:
@@ -443,6 +617,7 @@ class Frame_2D:
                     self.global_node_load_vector[coord_number] += force
 
     def calculate_global_equivalent_node_load_vector(self):
+        """Método que calcula o vetor de forças nodais equivalentes."""
         self.global_equivalent_node_load_vector = np.zeros(3 * self.model.num_nodes)
 
         for member in self.model.members:
@@ -456,7 +631,10 @@ class Frame_2D:
                         j
                     ] += member.fixed_end_forces_global[i]
 
+        self.global_equivalent_node_load_vector *= -1
+
     def calculate_global_displacements(self):
+        """Método que calcula deslocamentos globais do pórtico."""
         aux_S = np.copy(self.S)
         aux_P = np.copy(self.global_node_load_vector)
         aux_Pf = np.copy(self.global_equivalent_node_load_vector)
@@ -475,9 +653,10 @@ class Frame_2D:
                         aux_S[i, i] = 1
                         aux_P[i] = 0
                         aux_Pf[i] = 0
-        self.global_displacements = np.linalg.solve(aux_S, aux_P - aux_Pf)
+        self.global_displacements = np.linalg.solve(aux_S, aux_P + aux_Pf)
 
     def calculate_member_displacements(self):
+        """Método que calcula deslocamentos das extremidades das barras no SCG e SCL."""
         self.v = np.zeros([self.model.num_members, 6])
         self.u = np.zeros([self.model.num_members, 6])
 
@@ -492,6 +671,7 @@ class Frame_2D:
             member.set_member_end_displacements(self.u[member.id], self.v[member.id])
 
     def calculate_member_forces(self):
+        """Método que calcula esforços das extremidades das barras no SCG e SCL."""
         self.Q = np.zeros([self.model.num_members, 6])
         self.F = np.zeros([self.model.num_members, 6])
 
@@ -504,12 +684,8 @@ class Frame_2D:
             self.F[member.id] = np.dot(member.T.T, self.Q[member.id])
             member.set_member_end_forces(self.Q[member.id], self.F[member.id])
 
-        for member in self.model.members:
-            print(f"Membro {member.id}")
-            print(member.Q)
-            print("\n")
-
     def calculate_support_reactions(self):
+        """Método que calcula reações de apoio do pórtico."""
         self.support_reactions = np.zeros([self.model.num_nodes, 4])
 
         # self.calculate_member_forces()
@@ -534,6 +710,7 @@ class Frame_2D:
                     )
 
     def solve_frame(self):
+        """Método que resolve o pórtico."""
         self.calculate_global_displacements()
         self.calculate_member_displacements()
         self.calculate_member_forces()
@@ -541,7 +718,15 @@ class Frame_2D:
 
 
 class Results:
+    """Classe que gera e apresenta os resultados da análise."""
+
     def __init__(self, frame: Frame_2D):
+        """
+        Método inicializador.
+
+        Parâmetros:
+            frame (Frame_2D): objeto da classe Frame_2D com informações do pórtico.
+        """
         self.frame = frame
         self.model = frame.model
         self.input_file_path = Path(self.model.input_file_path)
@@ -554,6 +739,7 @@ class Results:
         self.output = self.template.copy()
 
     def write_header(self):
+        """Método que escreve cabeçalho dos resultados."""
         case_index = self.output.index("Caso:")
         num_nodes_index = self.output.index("Número de nós:")
         num_members_index = self.output.index("Número de barras:")
@@ -563,13 +749,17 @@ class Results:
         self.output[num_members_index] += f" {self.model.num_members}"
 
     def write_nodes(self):
+        """Método que escreve informações dos nós."""
         row_to_write = self.output.index("Nós:") + 2
 
         for i, node in enumerate(self.model.nodes):
-            self.output.insert(row_to_write, f"{i + 1} | {node.x:6.4E} | {node.y:6.4E}")
+            self.output.insert(
+                row_to_write, f"{i + 1} | {node.x:+6.4E} | {node.y:+6.4E}"
+            )
             row_to_write += 1
 
     def write_members(self):
+        """Método que escreve informações das barras."""
         row_to_write = self.output.index("Barras:") + 2
 
         for i, member in enumerate(self.model.members):
@@ -580,6 +770,7 @@ class Results:
             row_to_write += 1
 
     def write_supports(self):
+        """Método que escreve informações dos apoios."""
         row_to_write = self.output.index("Apoios:") + 2
 
         for support in self.model.supports:
@@ -591,6 +782,7 @@ class Results:
             row_to_write += 1
 
     def write_applied_node_loads(self):
+        """Método que escreve informações das cargas nodais aplicadas."""
         row_to_write = self.output.index("Forças nodais:") + 2
 
         for node in self.model.nodes:
@@ -601,6 +793,7 @@ class Results:
                 row_to_write += 1
 
     def write_applied_member_loads(self):
+        """Método que escreve informações das cargas distribuídas aplicadas."""
         row_to_write = self.output.index("Cargas distribuídas:") + 2
 
         for member in self.model.members:
@@ -608,20 +801,21 @@ class Results:
                 for load in member.applied_member_loads:
                     if "UNIFORM" in load.load_type:
                         load_type = load.load_type.replace("UNIFORM", "UNIFORME")
-                    else:
-                        load_type = load.load_type
-                    self.output.insert(
-                        row_to_write,
-                        f"{member.id + 1} | {load_type} | {load.w1} | {load.w2}",
-                    )
-                    row_to_write += 1
+                        if load.load_type == "UNIFORM":
+                            qx_global = load.qx * member.cs - load.qy * member.sn
+                            qy_global = load.qx * member.sn + load.qy * member.cs
+                            self.output.insert(
+                                row_to_write,
+                                f"{member.id + 1} | {load_type} | {qx_global:+6.4E} | {qy_global:+6.4E}",
+                            )
+                            row_to_write += 1
 
     def write_support_reactions(self):
+        """Método que escreve informações das reações de apoio."""
         row_to_write = self.output.index("Reações de apoio:") + 2
 
         for reaction in self.frame.support_reactions:
             if reaction.any():
-                # print(reaction)
                 node_id = int(reaction[0])
                 FRx, FRy, MRz = reaction[1:]
                 self.output.insert(
@@ -631,6 +825,7 @@ class Results:
                 row_to_write += 1
 
     def write_member_end_forces(self):
+        """Método que escreve informações dos esforços internos solicitantes."""
         row_to_write = self.output.index("Esforços internos solicitantes:") + 2
 
         for member in self.model.members:
@@ -649,22 +844,40 @@ class Results:
             self.output.insert(row_to_write, "---")
             row_to_write += 1
 
-    def write_results(self):
+    def write_results(self, save_file):
+        """
+        Método que escreve todos os resultados.
+
+        Parâmetros:
+            save_file (bool): salva arquivo com resultados se True.
+        """
         self.write_header()
         self.write_nodes()
         self.write_members()
         self.write_supports()
         self.write_applied_node_loads()
-        # self.write_applied_member_loads()
+        self.write_applied_member_loads()
         self.write_support_reactions()
         self.write_member_end_forces()
         print("\n".join(self.output))
+        if save_file:
+            with open(self.output_file_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(self.output))
 
 
 if __name__ == "__main__":
-    portico_1 = Frame_2D(
-        "D:\\repositorios\\structural-matrix-analysis\\Frame\\data\\Exemplo 1 - Pórtico.txt"
-    )
-    portico_1.solve_frame()
+    # Pórtico 1
+    # portico_1 = Frame_2D(
+    #     "D:\\repositorios\\structural-matrix-analysis\\Frame\\data\\Exemplo 1 - Pórtico.txt"
+    # )
+    # portico_1.solve_frame()
     # results_1 = Results(portico_1)
-    # results_1.write_results()
+    # results_1.write_results(save_file=True)
+
+    # Pórtico 2
+    portico_2 = Frame_2D(
+        "D:\\repositorios\\structural-matrix-analysis\\Frame\\data\\Exemplo 2 - Pórtico.txt"
+    )
+    portico_2.solve_frame()
+    results_2 = Results(portico_2)
+    results_2.write_results(save_file=True)

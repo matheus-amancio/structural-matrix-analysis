@@ -16,10 +16,12 @@ Forças nodais:
 Nó, Fx, Fy, Mz
 
 Cargas distribuídas:
-Barra, Tipo de carregamento, w1, w2
+Barra, Tipo de carregamento, qx, qy
 
 Reações de apoio:
 Nó, FRx, FRy, MRz
 
 Esforços internos solicitantes:
 Barra, Nó, Esforço normal, Esforço cortante, Momento fletor
+
+Fim da análise.
