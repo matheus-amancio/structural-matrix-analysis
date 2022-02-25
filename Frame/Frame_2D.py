@@ -839,7 +839,7 @@ class Results:
                 FRx, FRy, MRz = reaction[1:]
                 self.output.insert(
                     row_to_write,
-                    f"{node_id + 1} | {FRx:6.4E} | {FRy:6.4E} | {MRz:6.4E}",
+                    f"{node_id + 1} | {FRx:+6.4E} | {FRy:+6.4E} | {MRz:+6.4E}",
                 )
                 row_to_write += 1
 

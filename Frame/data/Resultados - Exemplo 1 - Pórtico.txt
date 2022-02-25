@@ -31,8 +31,8 @@ Barra, Tipo de carregamento, qx, qy
 
 Reações de apoio:
 Nó, FRx, FRy, MRz
-1 | -6.9856E+00 | 6.3091E-01 | 1.8155E+01
-4 | -3.0144E+00 | 9.3691E+00 | -3.5527E-15
+1 | -6.9856E+00 | +6.3091E-01 | +1.8155E+01
+4 | -3.0144E+00 | +9.3691E+00 | -3.5527E-15
 
 Esforços internos solicitantes:
 Barra, Nó, Esforço normal, Esforço cortante, Momento fletor
