@@ -877,7 +877,7 @@ class Results:
             )
             row_to_write += 1
 
-    def write_results(self, save_file):
+    def write_results(self, save_file=False):
         """
         Método que escreve todos os resultados.
 
