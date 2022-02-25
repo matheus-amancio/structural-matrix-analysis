@@ -923,3 +923,11 @@ if __name__ == "__main__":
     portico_3.solve_frame()
     results_3 = Results(portico_3)
     results_3.write_results(save_file=True)
+
+    # Pórtico 4
+    portico_4 = Frame_2D(
+        "D:\\repositorios\\structural-matrix-analysis\\Frame\\data\\Exemplo 4 - Pórtico.txt"
+    )
+    portico_4.solve_frame()
+    results_4 = Results(portico_4)
+    results_4.write_results(save_file=True)
