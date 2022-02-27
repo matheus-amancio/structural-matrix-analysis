@@ -456,7 +456,7 @@ class Model:
         with open(self.input_file_path, "r", encoding="utf-8") as f:
             self.raw_data = f.read().split("\n")
 
-    def get_nodes(self):
+    def set_nodes(self):
         """Método que faz a leitura dos dados referentes aos nós."""
         node_header_index = self.raw_data.index("% NODES %")
         num_nodes_index = node_header_index + 1
@@ -471,7 +471,7 @@ class Model:
             x, y = node.split()
             self.nodes[i] = Node(i, float(x), float(y))
 
-    def get_supports(self):
+    def set_supports(self):
         """Método que faz a leitura dos dados referentes aos apoios."""
         support_header_index = self.raw_data.index("% SUPPORTS %")
         num_supports_index = support_header_index + 1
@@ -491,7 +491,7 @@ class Model:
                     self.supports[i] = Support(i, node.id, int(d_x), int(d_y), int(r_z))
                     node.set_support(self.supports[i])
 
-    def get_materials(self):
+    def set_materials(self):
         """Método que faz a leitura dos dados referentes aos materiais."""
         material_header_index = self.raw_data.index("% MATERIALS %")
         num_materials_index = material_header_index + 1
@@ -507,7 +507,7 @@ class Model:
         for i, young_modulus in enumerate(material_data):
             self.materials[i] = Material(i, float(young_modulus))
 
-    def get_cross_sections(self):
+    def set_cross_sections(self):
         """Método que faz a leitura dos dados referentes às seções transversais."""
         cross_section_header_index = self.raw_data.index("% CROSS-SECTIONS %")
         num_cross_sections_index = cross_section_header_index + 1
@@ -527,7 +527,7 @@ class Model:
                 i, float(area), float(moment_of_inertia)
             )
 
-    def get_members(self):
+    def set_members(self):
         """Método que faz a leitura dos dados referentes às barras."""
         member_header_index = self.raw_data.index("% MEMBERS %")
         num_members_index = member_header_index + 1
@@ -553,7 +553,7 @@ class Model:
                 cross_section.I,
             )
 
-    def get_applied_node_loads(self):
+    def set_applied_node_loads(self):
         """Método que faz a leitura das informações referentes às cargas nodais."""
         node_load_header_index = self.raw_data.index("% NODE LOADS %")
         num_node_loads_index = node_load_header_index + 1
@@ -574,7 +574,7 @@ class Model:
                     node.set_load(node_load)
                     self.node_loads.append(node_load)
 
-    def get_applied_member_loads(self):
+    def set_applied_member_loads(self):
         """Método que faz a leitura das informações referentes aos carregamentos distribuídos."""
         member_load_header_index = self.raw_data.index("% MEMBER LOADS %")
         num_member_loads_index = member_load_header_index + 1
@@ -607,13 +607,13 @@ class Model:
     def set_model(self):
         """Método que faz a leitura de todas as informações necessárias."""
         self.read_input_file()
-        self.get_nodes()
-        self.get_supports()
-        self.get_materials()
-        self.get_cross_sections()
-        self.get_members()
-        self.get_applied_node_loads()
-        self.get_applied_member_loads()
+        self.set_nodes()
+        self.set_supports()
+        self.set_materials()
+        self.set_cross_sections()
+        self.set_members()
+        self.set_applied_node_loads()
+        self.set_applied_member_loads()
 
     def show_all_node_informations(self):
         """Método que mostra na tela todas as informações dos nós do pórtico."""
@@ -1004,9 +1004,7 @@ class Results:
 
 if __name__ == "__main__":
     # Pórtico 1
-    portico_1 = Frame_2D(
-        "D:\\repositorios\\structural-matrix-analysis\\Frame\\data\\Exemplo 1 - Pórtico.txt"
-    )
+    portico_1 = Frame_2D(Path(__file__).parent / "data" / "Exemplo 1 - Pórtico.txt")
     portico_1.solve_frame()
     results_1 = Results(portico_1)
     results_1.write_results(save_file=True)
@@ -1015,9 +1013,7 @@ if __name__ == "__main__":
     results_1.show_bending_moment_diagram()
 
     # Pórtico 2
-    portico_2 = Frame_2D(
-        "D:\\repositorios\\structural-matrix-analysis\\Frame\\data\\Exemplo 2 - Pórtico.txt"
-    )
+    portico_2 = Frame_2D(Path(__file__).parent / "data" / "Exemplo 2 - Pórtico.txt")
     portico_2.solve_frame()
     results_2 = Results(portico_2)
     results_2.write_results(save_file=True)
@@ -1026,9 +1022,7 @@ if __name__ == "__main__":
     results_2.show_bending_moment_diagram()
 
     # Pórtico 3
-    portico_3 = Frame_2D(
-        "D:\\repositorios\\structural-matrix-analysis\\Frame\\data\\Exemplo 3 - Pórtico.txt"
-    )
+    portico_3 = Frame_2D(Path(__file__).parent / "data" / "Exemplo 3 - Pórtico.txt")
     portico_3.solve_frame()
     results_3 = Results(portico_3)
     results_3.write_results(save_file=True)
@@ -1037,9 +1031,7 @@ if __name__ == "__main__":
     results_3.show_bending_moment_diagram()
 
     # Pórtico 4
-    portico_4 = Frame_2D(
-        "D:\\repositorios\\structural-matrix-analysis\\Frame\\data\\Exemplo 4 - Pórtico.txt"
-    )
+    portico_4 = Frame_2D(Path(__file__).parent / "data" / "Exemplo 4 - Pórtico.txt")
     portico_4.solve_frame()
     results_4 = Results(portico_4)
     results_4.write_results(save_file=True)
