@@ -21,8 +21,10 @@ S = matriz de rigidez global do pórtico.
 
 
 # Importação das bibliotecas necessárias
-import numpy as np
 from pathlib import Path
+
+import numpy as np
+import matplotlib.pyplot as plt
 
 
 class Material:
@@ -335,49 +337,105 @@ class Member:
 
 
 class Diagrams:
+    """Classe que calcula os valores dos diagramas de esforços internos solicitantes."""
+
     def __init__(self, member: Member, step_size=20):
+        """
+        Método inicializador.
+
+        Parâmetros:
+            member (Member): barra do pórtico
+            step_size (int): quanto maior, mais pontos o diagrama terá.
+        """
         self.member = member
+        self.step_size = step_size
         self.x = np.arange(
-            0, self.member.L + self.member.L / step_size, self.member.L / step_size
+            0,
+            self.member.L + self.member.L / self.step_size,
+            self.member.L / self.step_size,
         )
         self.N = self.calculate_axial_force_vector()
         self.V = self.calculate_shear_force_vector()
+        self.M = self.calculate_bending_moment_vector()
 
     def calculate_axial_force_vector(self):
-        if self.member.x1 <= self.member.x2:
-            axial_force = -self.member.Q[0] + 0 * self.x
-            for load in self.member.applied_member_loads:
-                if load.load_type == "UNIFORM-H":
-                    axial_force += load.w1 * self.x
-            return axial_force
-        else:
-            axial_force = self.member.Q[3] + 0 * self.x
-            for load in self.member.applied_member_loads:
-                if load.load_type == "UNIFORM-H":
-                    axial_force += -load.w1 * self.x
-            return axial_force
+        """Método que calcula esforço normal."""
+        axial_force = -self.member.Q[0] + 0 * self.x
+        for load in self.member.applied_member_loads:
+            if "UNIFORM" in load.load_type:
+                axial_force -= load.qx * self.x
+        return axial_force
 
     def calculate_shear_force_vector(self):
-        if self.member.x1 <= self.member.x2:
-            shear_force = self.member.Q[1] + 0 * self.x
-            for load in self.member.applied_member_loads:
-                if load.load_type != "UNIFORM-H":
-                    shear_force += (
-                        -load.w1 * self.member.L
-                        + self.x * self.member.L
-                        - 0.5 * self.x * load.w2
-                    )
-            return shear_force
+        """Método que calcula esforço cortante."""
+        shear_force = self.member.Q[1] + 0 * self.x
+        for load in self.member.applied_member_loads:
+            if "UNIFORM" in load.load_type:
+                shear_force += load.qy * self.x
+        return shear_force
+
+    def calculate_bending_moment_vector(self):
+        """Método que calcula momento fletor."""
+        bending_moment = -self.member.Q[2] + self.member.Q[1] * self.x
+        for load in self.member.applied_member_loads:
+            if "UNIFORM" in load.load_type:
+                bending_moment += load.qy * self.x ** 2 / 2
+        return bending_moment
+
+    def show_force_diagram(self, type_force, scale_factor=0.05, rotate=True):
+        """
+        Método que plota os diagramas de esforços internos solicitantes.
+
+        Parâmetros:
+            type_force (str):
+                "N" = Esforço normal
+                "V" = Esforço cortante
+                "M" = Momento fletor
+            scale_factor (float): fator de escala para exibição dos diagramas
+            rotate (bool): apresenta os esforços em todo o pórtico se verdadeiro
+        """
+        if type_force == "N":
+            f = self.N * scale_factor
+        elif type_force == "V":
+            f = self.V * scale_factor
+        elif type_force == "M":
+            f = -self.M * scale_factor
+        if rotate:
+            cs = self.member.cs
+            sn = self.member.sn
+            node_1 = self.member.first_node
+            node_2 = self.member.second_node
+            plt.plot([node_1.x, node_2.x], [node_1.y, node_2.y], "k")
+            plt.plot(
+                self.x * cs + f * -sn + node_1.x, self.x * sn + f * cs + node_1.y, "b"
+            )
+            plt.plot(
+                [
+                    self.x[0] * cs + self.x[0] * -sn + node_1.x,
+                    self.x[0] * cs + f[0] * -sn + node_1.x,
+                ],
+                [
+                    self.x[0] * sn + self.x[0] * cs + node_1.y,
+                    self.x[0] * sn + f[0] * cs + node_1.y,
+                ],
+                "b",
+            )
+            plt.plot(
+                [
+                    self.x[-1] * cs + self.x[0] * -sn + node_1.x,
+                    self.x[-1] * cs + f[-1] * -sn + node_1.x,
+                ],
+                [
+                    self.x[-1] * sn + self.x[0] * cs + node_1.y,
+                    self.x[-1] * sn + f[-1] * cs + node_1.y,
+                ],
+                "b",
+            )
         else:
-            shear_force = -self.member.Q[4] + 0 * self.x
-            for load in self.member.applied_member_loads:
-                if load.load_type != "UNIFORM-H":
-                    shear_force += -(
-                        -load.w1 * self.member.L
-                        + self.x * self.member.L
-                        - 0.5 * self.x * load.w2
-                    )
-            return shear_force
+            plt.plot(self.x, np.zeros(len(self.x)), "k")
+            plt.plot(self.x, f, "b")
+            plt.plot([self.x[0], self.x[0]], [self.x[0], f[0]], "b")
+            plt.plot([self.x[-1], self.x[-1]], [self.x[0], f[-1]], "b")
 
 
 class Model:
@@ -648,7 +706,7 @@ class Frame_2D:
         # Matrizes e vetores auxiliares
         aux_S = np.copy(self.S)
         aux_P = np.copy(self.global_node_load_vector)
-        aux_Pf = np.copy(self.global_equivalent_node_load_vector)
+        aux_Pe = np.copy(self.global_equivalent_node_load_vector)
 
         # Implementação do método pênalti
         for node in self.model.nodes:
@@ -664,8 +722,8 @@ class Frame_2D:
                                     aux_S[row_S, column_S] = 0
                         aux_S[i, i] = 1
                         aux_P[i] = 0
-                        aux_Pf[i] = 0
-        self.global_displacements = np.linalg.solve(aux_S, aux_P + aux_Pf)
+                        aux_Pe[i] = 0
+        self.global_displacements = np.linalg.solve(aux_S, aux_P + aux_Pe)
 
     def calculate_member_displacements(self):
         """Método que calcula deslocamentos das extremidades das barras no SCG e SCL."""
@@ -804,7 +862,10 @@ class Results:
             if node.has_applied_node_load:
                 Fx, Fy, Mz = node.applied_node_load.vector
 
-                self.output.insert(row_to_write, f"{node.id + 1} | {Fx:+6.4E} | {Fy:+6.4E} | {Mz:+6.4E}")
+                self.output.insert(
+                    row_to_write,
+                    f"{node.id + 1} | {Fx:+6.4E} | {Fy:+6.4E} | {Mz:+6.4E}",
+                )
                 row_to_write += 1
 
     def write_applied_member_loads(self):
@@ -898,6 +959,48 @@ class Results:
             with open(self.output_file_path, "w", encoding="utf-8") as f:
                 f.write("\n".join(self.output))
 
+    def show_axial_force_diagram(self, scale_factor=0.05):
+        """
+        Método que apresenta o diagrama de esforço normal.
+
+        Parâmetros:
+            scale_factor (float): fator de escala para exibição do diagrama
+        """
+        plt.axis("equal")
+        plt.axis("off")
+        for member in self.model.members:
+            diagram = Diagrams(member)
+            diagram.show_force_diagram("N", scale_factor)
+        plt.show()
+
+    def show_shear_force_diagram(self, scale_factor=0.05):
+        """
+        Método que apresenta o diagrama de esforço cortante.
+
+        Parâmetros:
+            scale_factor (float): fator de escala para exibição do diagrama
+        """
+        plt.axis("equal")
+        plt.axis("off")
+        for member in self.model.members:
+            diagram = Diagrams(member)
+            diagram.show_force_diagram("V", scale_factor)
+        plt.show()
+
+    def show_bending_moment_diagram(self, scale_factor=0.05):
+        """
+        Método que apresenta o diagrama de momento fletor.
+
+        Parâmetros:
+            scale_factor (float): fator de escala para exibição do diagrama
+        """
+        plt.axis("equal")
+        plt.axis("off")
+        for member in self.model.members:
+            diagram = Diagrams(member)
+            diagram.show_force_diagram("M", scale_factor)
+        plt.show()
+
 
 if __name__ == "__main__":
     # Pórtico 1
@@ -907,6 +1010,9 @@ if __name__ == "__main__":
     portico_1.solve_frame()
     results_1 = Results(portico_1)
     results_1.write_results(save_file=True)
+    results_1.show_axial_force_diagram()
+    results_1.show_shear_force_diagram()
+    results_1.show_bending_moment_diagram()
 
     # Pórtico 2
     portico_2 = Frame_2D(
@@ -915,6 +1021,9 @@ if __name__ == "__main__":
     portico_2.solve_frame()
     results_2 = Results(portico_2)
     results_2.write_results(save_file=True)
+    results_2.show_axial_force_diagram()
+    results_2.show_shear_force_diagram()
+    results_2.show_bending_moment_diagram()
 
     # Pórtico 3
     portico_3 = Frame_2D(
@@ -923,6 +1032,9 @@ if __name__ == "__main__":
     portico_3.solve_frame()
     results_3 = Results(portico_3)
     results_3.write_results(save_file=True)
+    results_3.show_axial_force_diagram()
+    results_3.show_shear_force_diagram()
+    results_3.show_bending_moment_diagram()
 
     # Pórtico 4
     portico_4 = Frame_2D(
@@ -931,3 +1043,6 @@ if __name__ == "__main__":
     portico_4.solve_frame()
     results_4 = Results(portico_4)
     results_4.write_results(save_file=True)
+    results_4.show_axial_force_diagram()
+    results_4.show_shear_force_diagram(scale_factor=0.01)
+    results_4.show_bending_moment_diagram(scale_factor=0.005)
