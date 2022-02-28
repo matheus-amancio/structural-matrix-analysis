@@ -758,29 +758,26 @@ class Frame_2D:
 
     def calculate_support_reactions(self):
         """Método que calcula reações de apoio do pórtico."""
-        self.support_reactions = np.zeros([self.model.num_nodes, 4])
+        self.support_reactions = np.zeros([self.model.num_supports, 3])
 
         # Caso precise rodar esse método isoladamente, descomente a linha abaixo
         # self.calculate_member_forces()
 
         for support in self.model.supports:
+            reaction = np.zeros(3)
             for member in self.model.members:
                 if member.first_node.id == support.node_id:
-                    member.first_node.support_reactions += member.F[:3]
-                    self.support_reactions[support.node_id] += np.array(
-                        [
-                            member.first_node.id,
-                            *member.F[:3],
-                        ]
-                    )
+                    for i in range(3):
+                        if member.first_node.restrained_coords[i]:
+                            reaction[i] += member.F[i]
+                    member.first_node.support_reactions = reaction
+                    self.support_reactions[support.id] = reaction
                 if member.second_node.id == support.node_id:
-                    member.second_node.support_reactions += member.F[3:]
-                    self.support_reactions[support.node_id] += np.array(
-                        [
-                            member.second_node.id,
-                            *member.F[:3],
-                        ]
-                    )
+                    for i in range(3):
+                        if member.second_node.restrained_coords[i]:
+                            reaction[i] += member.F[i + 3]
+                    member.second_node.support_reactions = reaction
+                    self.support_reactions[support.id] = reaction
 
     def solve_frame(self):
         """Método que resolve o pórtico."""
@@ -894,15 +891,14 @@ class Results:
         """Método que escreve informações das reações de apoio."""
         row_to_write = self.output.index("Reações de apoio:") + 2
 
-        for reaction in self.frame.support_reactions:
-            if reaction.any():
-                node_id = int(reaction[0])
-                FRx, FRy, MRz = reaction[1:]
-                self.output.insert(
-                    row_to_write,
-                    f"{node_id + 1} | {FRx:+6.4E} | {FRy:+6.4E} | {MRz:+6.4E}",
-                )
-                row_to_write += 1
+        for support in self.model.supports:
+            FRx, FRy, MRz = self.frame.support_reactions[support.id]
+            node_id = support.node_id
+            self.output.insert(
+                row_to_write,
+                f"{node_id + 1} | {FRx:+6.4E} | {FRy:+6.4E} | {MRz:+6.4E}",
+            )
+            row_to_write += 1
 
     def write_member_end_forces(self):
         """Método que escreve informações dos esforços internos solicitantes."""
