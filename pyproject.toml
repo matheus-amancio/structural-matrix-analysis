@@ -1,18 +1,24 @@
-[tool.poetry]
+[project]
 name = "structural-matrix-analysis"
 version = "1.0.0"
-description = "Pacote para resolver estruturas utilizando a abordagem matricial do método dos deslocamentos"
-authors = ["Matheus Amancio Miranda <matheus.amancio98@gmail.com>"]
-license = "MIT License"
-
-[tool.poetry.dependencies]
-python = "^3.10"
-numpy = "^1.22.1"
-matplotlib = "^3.5.1"
-
-[tool.poetry.dev-dependencies]
-black = "^21.12b0"
+description = "Códigos desenvolvidos durante a disciplina Análise Matricial de Estruturas"
+authors = [
+    {name = "Matheus Amancio Miranda", email = "matheus.amancio98@gmail.com"},
+]
+dependencies = [
+    "numpy>=1.23.5",
+    "matplotlib>=3.6.2",
+]
+requires-python = ">=3.11"
+license = {text = "MIT"}
+[project.optional-dependencies]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["pdm-pep517>=1.0.0"]
+build-backend = "pdm.pep517.api"
+
+[tool.pdm]
+[tool.pdm.dev-dependencies]
+dev = [
+    "black>=22.10.0",
+]
