@@ -284,7 +284,9 @@ class Member:
         Parâmetros:
             load_id: identificador do carregamento.
         """
-        load = self.applied_member_loads[load_id]
+        for member_load in self.applied_member_loads:
+            if member_load.id == load_id:
+                load = member_load
         # Reações de barra formada pelos nós j e k
         # A = axial, S = cisalhamento, M = momento
         FAj = FSj = FMj = FAk = FSk = FMk = 0
@@ -999,38 +1001,47 @@ class Results:
 
 
 if __name__ == "__main__":
-    # Pórtico 1
-    portico_1 = Frame_2D(Path(__file__).parent / "data" / "Exemplo 1 - Pórtico.txt")
+    # # Pórtico 1
+    # portico_1 = Frame_2D(Path(__file__).parent / "data" / "Exemplo 1 - Pórtico.txt")
+    # portico_1.solve_frame()
+    # results_1 = Results(portico_1)
+    # results_1.write_results(save_file=True)
+    # results_1.show_axial_force_diagram()
+    # results_1.show_shear_force_diagram()
+    # results_1.show_bending_moment_diagram()
+
+    # # Pórtico 2
+    # portico_2 = Frame_2D(Path(__file__).parent / "data" / "Exemplo 2 - Pórtico.txt")
+    # portico_2.solve_frame()
+    # results_2 = Results(portico_2)
+    # results_2.write_results(save_file=True)
+    # results_2.show_axial_force_diagram()
+    # results_2.show_shear_force_diagram()
+    # results_2.show_bending_moment_diagram()
+
+    # # Pórtico 3
+    # portico_3 = Frame_2D(Path(__file__).parent / "data" / "Exemplo 3 - Pórtico.txt")
+    # portico_3.solve_frame()
+    # results_3 = Results(portico_3)
+    # results_3.write_results(save_file=True)
+    # results_3.show_axial_force_diagram()
+    # results_3.show_shear_force_diagram()
+    # results_3.show_bending_moment_diagram()
+
+    # # Pórtico 4
+    # portico_4 = Frame_2D(Path(__file__).parent / "data" / "Exemplo 4 - Pórtico.txt")
+    # portico_4.solve_frame()
+    # results_4 = Results(portico_4)
+    # results_4.write_results(save_file=True)
+    # results_4.show_axial_force_diagram()
+    # results_4.show_shear_force_diagram(scale_factor=0.01)
+    # results_4.show_bending_moment_diagram(scale_factor=0.005)
+
+    # Pórtico 1 - Flávio
+    portico_1 = Frame_2D(Path(__file__).parent / "data" / "Exemplo Flávio 3.txt")
     portico_1.solve_frame()
     results_1 = Results(portico_1)
     results_1.write_results(save_file=True)
     results_1.show_axial_force_diagram()
     results_1.show_shear_force_diagram()
     results_1.show_bending_moment_diagram()
-
-    # Pórtico 2
-    portico_2 = Frame_2D(Path(__file__).parent / "data" / "Exemplo 2 - Pórtico.txt")
-    portico_2.solve_frame()
-    results_2 = Results(portico_2)
-    results_2.write_results(save_file=True)
-    results_2.show_axial_force_diagram()
-    results_2.show_shear_force_diagram()
-    results_2.show_bending_moment_diagram()
-
-    # Pórtico 3
-    portico_3 = Frame_2D(Path(__file__).parent / "data" / "Exemplo 3 - Pórtico.txt")
-    portico_3.solve_frame()
-    results_3 = Results(portico_3)
-    results_3.write_results(save_file=True)
-    results_3.show_axial_force_diagram()
-    results_3.show_shear_force_diagram()
-    results_3.show_bending_moment_diagram()
-
-    # Pórtico 4
-    portico_4 = Frame_2D(Path(__file__).parent / "data" / "Exemplo 4 - Pórtico.txt")
-    portico_4.solve_frame()
-    results_4 = Results(portico_4)
-    results_4.write_results(save_file=True)
-    results_4.show_axial_force_diagram()
-    results_4.show_shear_force_diagram(scale_factor=0.01)
-    results_4.show_bending_moment_diagram(scale_factor=0.005)
